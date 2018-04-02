@@ -30,7 +30,8 @@ func init() {
 			aliases := config.Aliases
 
 			for _, filename := range filenames {
-				alias := strings.TrimSpace(strings.TrimPrefix(filepath.Ext(filename), "."))
+				alias := strings.TrimPrefix(filepath.Ext(filename), ".")
+				alias = strings.Trim(alias, "_* ")
 				if alias != "" {
 					aliases = append(aliases, alias)
 				}
