@@ -11,6 +11,7 @@ grade: devel # "devel" or "stable"
 apps:
   hugo:
     command: bin/hugo
+    completer: hugo-completion
     plugs: [home, network-bind, removable-media]
 
 parts:
@@ -28,11 +29,18 @@ parts:
       export PATH=$GOPATH/bin:$PATH
       cd $GOPATH/src/github.com/gohugoio/hugo
       go get github.com/magefile/mage
-      mage -v vendor test
-      rm -f $GOPATH/bin/dep
-      rm -f $GOPATH/bin/mage
+      mage -v vendor check
+    build: |
+      export GOPATH=$(dirname $SNAPCRAFT_PART_INSTALL)/go
+      export PATH=$GOPATH/bin:$PATH
+      [ "$SNAPCRAFT_PROJECT_GRADE" = "stable" ] && mage hugoNoGitInfo || mage hugo
+      ./hugo version
+      ./hugo gen autocomplete --completionfile=hugo-completion
     install: |
+      install -d $SNAPCRAFT_PART_INSTALL/bin
+      cp -a hugo $SNAPCRAFT_PART_INSTALL/bin/hugo
       strip --remove-section=.comment --remove-section=.note $SNAPCRAFT_PART_INSTALL/bin/hugo
+      mv hugo-completion $SNAPCRAFT_PART_INSTALL/hugo-completion
     after: [go]
   go:
     source-tag: go1.10
