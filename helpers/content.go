@@ -463,7 +463,7 @@ func (c ContentSpec) RenderBytes(ctx *RenderingContext) []byte {
 	case "org":
 		return orgRender(ctx, c)
 	case "pandoc":
-		return getPandocContent(ctx, c.cfg.GetStringSlice("pandocParameters"))
+		return getPandocContent(ctx, c.cfg.GetStringSlice("pandocFlags"))
 	}
 }
 
