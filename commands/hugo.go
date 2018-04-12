@@ -1,4 +1,4 @@
-// Copyright 2016 The Hugo Authors. All rights reserved.
+// Copyright 2018 The Hugo Authors. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -39,8 +39,6 @@ import (
 	"github.com/gohugoio/hugo/parser"
 	flag "github.com/spf13/pflag"
 
-	"regexp"
-
 	"github.com/fsnotify/fsnotify"
 	"github.com/gohugoio/hugo/helpers"
 	"github.com/gohugoio/hugo/hugolib"
@@ -51,249 +49,66 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/fsync"
 	jww "github.com/spf13/jwalterweatherman"
-	"github.com/spf13/nitro"
 )
 
-// Hugo represents the Hugo sites to build. This variable is exported as it
-// is used by at least one external library (the Hugo caddy plugin). We should
-// provide a cleaner external API, but until then, this is it.
-var Hugo *hugolib.HugoSites
+// The Response value from Execute.
+type Response struct {
+	// The build Result will only be set in the hugo build command.
+	Result *hugolib.HugoSites
 
-const (
-	ansiEsc    = "\u001B"
-	clearLine  = "\r\033[K"
-	hideCursor = ansiEsc + "[?25l"
-	showCursor = ansiEsc + "[?25h"
-)
+	// Err is set when the command failed to execute.
+	Err error
 
-// Reset resets Hugo ready for a new full build. This is mainly only useful
-// for benchmark testing etc. via the CLI commands.
-func Reset() error {
-	Hugo = nil
-	return nil
+	// The command that was executed.
+	Cmd *cobra.Command
 }
 
-// commandError is an error used to signal different error situations in command handling.
-type commandError struct {
-	s         string
-	userError bool
+func (r Response) IsUserError() bool {
+	return r.Err != nil && isUserError(r.Err)
 }
-
-func (c commandError) Error() string {
-	return c.s
-}
-
-func (c commandError) isUserError() bool {
-	return c.userError
-}
-
-func newUserError(a ...interface{}) commandError {
-	return commandError{s: fmt.Sprintln(a...), userError: true}
-}
-
-func newSystemError(a ...interface{}) commandError {
-	return commandError{s: fmt.Sprintln(a...), userError: false}
-}
-
-func newSystemErrorF(format string, a ...interface{}) commandError {
-	return commandError{s: fmt.Sprintf(format, a...), userError: false}
-}
-
-// Catch some of the obvious user errors from Cobra.
-// We don't want to show the usage message for every error.
-// The below may be to generic. Time will show.
-var userErrorRegexp = regexp.MustCompile("argument|flag|shorthand")
-
-func isUserError(err error) bool {
-	if cErr, ok := err.(commandError); ok && cErr.isUserError() {
-		return true
-	}
-
-	return userErrorRegexp.MatchString(err.Error())
-}
-
-// HugoCmd is Hugo's root command.
-// Every other command attached to HugoCmd is a child command to it.
-var HugoCmd = &cobra.Command{
-	Use:   "hugo",
-	Short: "hugo builds your site",
-	Long: `hugo is the main command, used to build your Hugo site.
-
-Hugo is a Fast and Flexible Static Site Generator
-built with love by spf13 and friends in Go.
-
-Complete documentation is available at http://gohugo.io/.`,
-	RunE: func(cmd *cobra.Command, args []string) error {
-
-		cfgInit := func(c *commandeer) error {
-			if buildWatch {
-				c.Set("disableLiveReload", true)
-			}
-			c.Set("renderToMemory", renderToMemory)
-			return nil
-		}
-
-		c, err := InitializeConfig(buildWatch, cfgInit)
-		if err != nil {
-			return err
-		}
-
-		return c.build()
-	},
-}
-
-var hugoCmdV *cobra.Command
-
-// Flags that are to be added to commands.
-var (
-	buildWatch     bool
-	logging        bool
-	renderToMemory bool // for benchmark testing
-	verbose        bool
-	verboseLog     bool
-	debug          bool
-	quiet          bool
-)
-
-var (
-	gc              bool
-	baseURL         string
-	cacheDir        string
-	contentDir      string
-	layoutDir       string
-	cfgFile         string
-	destination     string
-	logFile         string
-	theme           string
-	themesDir       string
-	source          string
-	logI18nWarnings bool
-	disableKinds    []string
-)
 
 // Execute adds all child commands to the root command HugoCmd and sets flags appropriately.
-func Execute() {
-	HugoCmd.SetGlobalNormalizationFunc(helpers.NormalizeHugoFlags)
+// The args are usually filled with os.Args[1:].
+func Execute(args []string) Response {
+	hugoCmd := newHugoCompleteCmd()
+	cmd := hugoCmd.getCommand()
+	cmd.SetArgs(args)
 
-	HugoCmd.SilenceUsage = true
+	c, err := cmd.ExecuteC()
 
-	AddCommands()
+	var resp Response
 
-	if c, err := HugoCmd.ExecuteC(); err != nil {
-		if isUserError(err) {
-			c.Println("")
-			c.Println(c.UsageString())
+	if c == cmd && hugoCmd.c != nil {
+		// Root command executed
+		resp.Result = hugoCmd.c.hugo
+	}
+
+	if err == nil {
+		errCount := jww.LogCountForLevelsGreaterThanorEqualTo(jww.LevelError)
+		if errCount > 0 {
+			err = fmt.Errorf("logged %d errors", errCount)
+		} else if resp.Result != nil {
+			errCount = resp.Result.Log.LogCountForLevelsGreaterThanorEqualTo(jww.LevelError)
+			if errCount > 0 {
+				err = fmt.Errorf("logged %d errors", errCount)
+			}
 		}
 
-		os.Exit(-1)
 	}
-}
 
-// AddCommands adds child commands to the root command HugoCmd.
-func AddCommands() {
-	HugoCmd.AddCommand(serverCmd)
-	HugoCmd.AddCommand(versionCmd)
-	HugoCmd.AddCommand(envCmd)
-	HugoCmd.AddCommand(configCmd)
-	HugoCmd.AddCommand(checkCmd)
-	HugoCmd.AddCommand(benchmarkCmd)
-	HugoCmd.AddCommand(convertCmd)
-	HugoCmd.AddCommand(newCmd)
-	HugoCmd.AddCommand(listCmd)
-	HugoCmd.AddCommand(importCmd)
+	resp.Err = err
+	resp.Cmd = c
 
-	HugoCmd.AddCommand(genCmd)
-	genCmd.AddCommand(genautocompleteCmd)
-	genCmd.AddCommand(gendocCmd)
-	genCmd.AddCommand(genmanCmd)
-	genCmd.AddCommand(createGenDocsHelper().cmd)
-	genCmd.AddCommand(createGenChromaStyles().cmd)
-
-}
-
-// initHugoBuilderFlags initializes all common flags, typically used by the
-// core build commands, namely hugo itself, server, check and benchmark.
-func initHugoBuilderFlags(cmd *cobra.Command) {
-	initHugoBuildCommonFlags(cmd)
-}
-
-func initRootPersistentFlags() {
-	HugoCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is path/config.yaml|json|toml)")
-	HugoCmd.PersistentFlags().BoolVar(&quiet, "quiet", false, "build in quiet mode")
-
-	// Set bash-completion
-	validConfigFilenames := []string{"json", "js", "yaml", "yml", "toml", "tml"}
-	_ = HugoCmd.PersistentFlags().SetAnnotation("config", cobra.BashCompFilenameExt, validConfigFilenames)
-}
-
-// initHugoBuildCommonFlags initialize common flags related to the Hugo build.
-// Called by initHugoBuilderFlags.
-func initHugoBuildCommonFlags(cmd *cobra.Command) {
-	cmd.Flags().Bool("cleanDestinationDir", false, "remove files from destination not found in static directories")
-	cmd.Flags().BoolP("buildDrafts", "D", false, "include content marked as draft")
-	cmd.Flags().BoolP("buildFuture", "F", false, "include content with publishdate in the future")
-	cmd.Flags().BoolP("buildExpired", "E", false, "include expired content")
-	cmd.Flags().StringVarP(&source, "source", "s", "", "filesystem path to read files relative from")
-	cmd.Flags().StringVarP(&contentDir, "contentDir", "c", "", "filesystem path to content directory")
-	cmd.Flags().StringVarP(&layoutDir, "layoutDir", "l", "", "filesystem path to layout directory")
-	cmd.Flags().StringVarP(&cacheDir, "cacheDir", "", "", "filesystem path to cache directory. Defaults: $TMPDIR/hugo_cache/")
-	cmd.Flags().BoolP("ignoreCache", "", false, "ignores the cache directory")
-	cmd.Flags().StringVarP(&destination, "destination", "d", "", "filesystem path to write files to")
-	cmd.Flags().StringVarP(&theme, "theme", "t", "", "theme to use (located in /themes/THEMENAME/)")
-	cmd.Flags().StringVarP(&themesDir, "themesDir", "", "", "filesystem path to themes directory")
-	cmd.Flags().Bool("uglyURLs", false, "(deprecated) if true, use /filename.html instead of /filename/")
-	cmd.Flags().Bool("canonifyURLs", false, "(deprecated) if true, all relative URLs will be canonicalized using baseURL")
-	cmd.Flags().StringVarP(&baseURL, "baseURL", "b", "", "hostname (and path) to the root, e.g. http://spf13.com/")
-	cmd.Flags().Bool("enableGitInfo", false, "add Git revision, date and author info to the pages")
-	cmd.Flags().BoolVar(&gc, "gc", false, "enable to run some cleanup tasks (remove unused cache files) after the build")
-
-	cmd.Flags().BoolVar(&nitro.AnalysisOn, "stepAnalysis", false, "display memory and timing of different steps of the program")
-	cmd.Flags().Bool("templateMetrics", false, "display metrics about template executions")
-	cmd.Flags().Bool("templateMetricsHints", false, "calculate some improvement hints when combined with --templateMetrics")
-	cmd.Flags().Bool("pluralizeListTitles", true, "(deprecated) pluralize titles in lists using inflect")
-	cmd.Flags().Bool("preserveTaxonomyNames", false, `(deprecated) preserve taxonomy names as written ("Gérard Depardieu" vs "gerard-depardieu")`)
-	cmd.Flags().BoolP("forceSyncStatic", "", false, "copy all files when static is changed.")
-	cmd.Flags().BoolP("noTimes", "", false, "don't sync modification time of files")
-	cmd.Flags().BoolP("noChmod", "", false, "don't sync permission mode of files")
-	cmd.Flags().BoolVarP(&logI18nWarnings, "i18n-warnings", "", false, "print missing translations")
-
-	cmd.Flags().StringSliceVar(&disableKinds, "disableKinds", []string{}, "disable different kind of pages (home, RSS etc.)")
-
-	// Set bash-completion.
-	// Each flag must first be defined before using the SetAnnotation() call.
-	_ = cmd.Flags().SetAnnotation("source", cobra.BashCompSubdirsInDir, []string{})
-	_ = cmd.Flags().SetAnnotation("cacheDir", cobra.BashCompSubdirsInDir, []string{})
-	_ = cmd.Flags().SetAnnotation("destination", cobra.BashCompSubdirsInDir, []string{})
-	_ = cmd.Flags().SetAnnotation("theme", cobra.BashCompSubdirsInDir, []string{"themes"})
-}
-
-func initBenchmarkBuildingFlags(cmd *cobra.Command) {
-	cmd.Flags().BoolVar(&renderToMemory, "renderToMemory", false, "render to memory (only useful for benchmark testing)")
-}
-
-// init initializes flags.
-func init() {
-	HugoCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "verbose output")
-	HugoCmd.PersistentFlags().BoolVarP(&debug, "debug", "", false, "debug output")
-	HugoCmd.PersistentFlags().BoolVar(&logging, "log", false, "enable Logging")
-	HugoCmd.PersistentFlags().StringVar(&logFile, "logFile", "", "log File path (if set, logging enabled automatically)")
-	HugoCmd.PersistentFlags().BoolVar(&verboseLog, "verboseLog", false, "verbose logging")
-
-	initRootPersistentFlags()
-	initHugoBuilderFlags(HugoCmd)
-	initBenchmarkBuildingFlags(HugoCmd)
-
-	HugoCmd.Flags().BoolVarP(&buildWatch, "watch", "w", false, "watch filesystem for changes and recreate as needed")
-	hugoCmdV = HugoCmd
-
-	// Set bash-completion
-	_ = HugoCmd.PersistentFlags().SetAnnotation("logFile", cobra.BashCompFilenameExt, []string{})
+	return resp
 }
 
 // InitializeConfig initializes a config file with sensible default configuration flags.
-func InitializeConfig(running bool, doWithCommandeer func(c *commandeer) error, subCmdVs ...*cobra.Command) (*commandeer, error) {
+func initializeConfig(running bool,
+	h *hugoBuilderCommon,
+	f flagsToConfigHandler,
+	doWithCommandeer func(c *commandeer) error) (*commandeer, error) {
 
-	c, err := newCommandeer(running, doWithCommandeer, subCmdVs...)
+	c, err := newCommandeer(running, h, f, doWithCommandeer)
 	if err != nil {
 		return nil, err
 	}
@@ -302,7 +117,7 @@ func InitializeConfig(running bool, doWithCommandeer func(c *commandeer) error, 
 
 }
 
-func createLogger(cfg config.Provider) (*jww.Notepad, error) {
+func (c *commandeer) createLogger(cfg config.Provider) (*jww.Notepad, error) {
 	var (
 		logHandle       = ioutil.Discard
 		logThreshold    = jww.LevelWarn
@@ -311,7 +126,7 @@ func createLogger(cfg config.Provider) (*jww.Notepad, error) {
 		stdoutThreshold = jww.LevelError
 	)
 
-	if verboseLog || logging || (logFile != "") {
+	if c.h.verboseLog || c.h.logging || (c.h.logFile != "") {
 		var err error
 		if logFile != "" {
 			logHandle, err = os.OpenFile(logFile, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0666)
@@ -324,7 +139,7 @@ func createLogger(cfg config.Provider) (*jww.Notepad, error) {
 				return nil, newSystemError(err)
 			}
 		}
-	} else if !quiet && cfg.GetBool("verbose") {
+	} else if !c.h.quiet && cfg.GetBool("verbose") {
 		stdoutThreshold = jww.LevelInfo
 	}
 
@@ -332,7 +147,7 @@ func createLogger(cfg config.Provider) (*jww.Notepad, error) {
 		stdoutThreshold = jww.LevelDebug
 	}
 
-	if verboseLog {
+	if c.h.verboseLog {
 		logThreshold = jww.LevelInfo
 		if cfg.GetBool("debug") {
 			logThreshold = jww.LevelDebug
@@ -349,7 +164,12 @@ func createLogger(cfg config.Provider) (*jww.Notepad, error) {
 }
 
 func initializeFlags(cmd *cobra.Command, cfg config.Provider) {
-	persFlagKeys := []string{"debug", "verbose", "logFile"}
+	persFlagKeys := []string{
+		"debug",
+		"verbose",
+		"logFile",
+		// Moved from vars
+	}
 	flagKeys := []string{
 		"cleanDestinationDir",
 		"buildDrafts",
@@ -367,6 +187,27 @@ func initializeFlags(cmd *cobra.Command, cfg config.Provider) {
 		"noChmod",
 		"templateMetrics",
 		"templateMetricsHints",
+
+		// Moved from vars.
+		"baseURL ",
+		"buildWatch",
+		"cacheDir",
+		"cfgFile",
+		"contentDir",
+		"debug",
+		"destination",
+		"disableKinds",
+		"gc",
+		"layoutDir",
+		"logFile",
+		"logI18nWarnings",
+		"quiet",
+		"renderToMemory",
+		"source",
+		"theme",
+		"themesDir",
+		"verbose",
+		"verboseLog",
 	}
 
 	for _, key := range persFlagKeys {
@@ -404,7 +245,7 @@ func (c *commandeer) fullBuild() error {
 		langCount map[string]uint64
 	)
 
-	if !quiet {
+	if !c.h.quiet {
 		fmt.Print(hideCursor + "Building sites … ")
 		defer func() {
 			fmt.Print(showCursor + clearLine)
@@ -443,16 +284,16 @@ func (c *commandeer) fullBuild() error {
 		}
 	}
 
-	for _, s := range Hugo.Sites {
+	for _, s := range c.hugo.Sites {
 		s.ProcessingStats.Static = langCount[s.Language.Lang]
 	}
 
-	if gc {
-		count, err := Hugo.GC()
+	if c.h.gc {
+		count, err := c.hugo.GC()
 		if err != nil {
 			return err
 		}
-		for _, s := range Hugo.Sites {
+		for _, s := range c.hugo.Sites {
 			// We have no way of knowing what site the garbage belonged to.
 			s.ProcessingStats.Cleaned = uint64(count)
 		}
@@ -470,13 +311,13 @@ func (c *commandeer) build() error {
 	}
 
 	// TODO(bep) Feedback?
-	if !quiet {
+	if !c.h.quiet {
 		fmt.Println()
-		Hugo.PrintProcessingStats(os.Stdout)
+		c.hugo.PrintProcessingStats(os.Stdout)
 		fmt.Println()
 	}
 
-	if buildWatch {
+	if c.h.buildWatch {
 		watchDirs, err := c.getDirList()
 		if err != nil {
 			return err
@@ -504,9 +345,9 @@ func (c *commandeer) serverBuild() error {
 	}
 
 	// TODO(bep) Feedback?
-	if !quiet {
+	if !c.h.quiet {
 		fmt.Println()
-		Hugo.PrintProcessingStats(os.Stdout)
+		c.hugo.PrintProcessingStats(os.Stdout)
 		fmt.Println()
 	}
 
@@ -636,7 +477,7 @@ func (c *commandeer) copyStaticTo(dirs *src.Dirs, publishDir string) (uint64, er
 }
 
 func (c *commandeer) timeTrack(start time.Time, name string) {
-	if quiet {
+	if c.h.quiet {
 		return
 	}
 	elapsed := time.Since(start)
@@ -788,34 +629,36 @@ func (c *commandeer) recreateAndBuildSites(watching bool) (err error) {
 	if err := c.initSites(); err != nil {
 		return err
 	}
-	if !quiet {
+	if !c.h.quiet {
 		c.Logger.FEEDBACK.Println("Started building sites ...")
 	}
-	return Hugo.Build(hugolib.BuildCfg{CreateSitesFromConfig: true})
+	return c.hugo.Build(hugolib.BuildCfg{CreateSitesFromConfig: true})
 }
 
 func (c *commandeer) resetAndBuildSites() (err error) {
 	if err = c.initSites(); err != nil {
 		return
 	}
-	if !quiet {
+	if !c.h.quiet {
 		c.Logger.FEEDBACK.Println("Started building sites ...")
 	}
-	return Hugo.Build(hugolib.BuildCfg{ResetState: true})
+	return c.hugo.Build(hugolib.BuildCfg{ResetState: true})
 }
 
 func (c *commandeer) initSites() error {
-	if Hugo != nil {
-		Hugo.Cfg = c.Cfg
-		Hugo.Log.ResetLogCounters()
+	if c.hugo != nil {
+		c.hugo.Cfg = c.Cfg
+		c.hugo.Log.ResetLogCounters()
 		return nil
 	}
+
 	h, err := hugolib.NewHugoSites(*c.DepsCfg)
 
 	if err != nil {
 		return err
 	}
-	Hugo = h
+
+	c.hugo = h
 
 	return nil
 }
@@ -824,7 +667,7 @@ func (c *commandeer) buildSites() (err error) {
 	if err := c.initSites(); err != nil {
 		return err
 	}
-	return Hugo.Build(hugolib.BuildCfg{})
+	return c.hugo.Build(hugolib.BuildCfg{})
 }
 
 func (c *commandeer) rebuildSites(events []fsnotify.Event) error {
@@ -834,7 +677,7 @@ func (c *commandeer) rebuildSites(events []fsnotify.Event) error {
 		return err
 	}
 	visited := c.visitedURLs.PeekAllSet()
-	doLiveReload := !buildWatch && !c.Cfg.GetBool("disableLiveReload")
+	doLiveReload := !c.h.buildWatch && !c.Cfg.GetBool("disableLiveReload")
 	if doLiveReload && !c.Cfg.GetBool("disableFastRender") {
 
 		// Make sure we always render the home pages
@@ -848,7 +691,7 @@ func (c *commandeer) rebuildSites(events []fsnotify.Event) error {
 		}
 
 	}
-	return Hugo.Build(hugolib.BuildCfg{RecentlyVisited: visited}, events...)
+	return c.hugo.Build(hugolib.BuildCfg{RecentlyVisited: visited}, events...)
 }
 
 func (c *commandeer) fullRebuild() {
@@ -856,7 +699,7 @@ func (c *commandeer) fullRebuild() {
 		jww.ERROR.Println("Failed to reload config:", err)
 	} else if err := c.recreateAndBuildSites(true); err != nil {
 		jww.ERROR.Println(err)
-	} else if !buildWatch && !c.Cfg.GetBool("disableLiveReload") {
+	} else if !c.h.buildWatch && !c.Cfg.GetBool("disableLiveReload") {
 		livereload.ForceRefresh()
 	}
 }
@@ -922,7 +765,7 @@ func (c *commandeer) newWatcher(dirList ...string) (*watcher.Batcher, error) {
 					}
 
 					// Check the most specific first, i.e. files.
-					contentMapped := Hugo.ContentChanges.GetSymbolicLinkMappings(ev.Name)
+					contentMapped := c.hugo.ContentChanges.GetSymbolicLinkMappings(ev.Name)
 					if len(contentMapped) > 0 {
 						for _, mapped := range contentMapped {
 							filtered = append(filtered, fsnotify.Event{Name: mapped, Op: ev.Op})
@@ -934,7 +777,7 @@ func (c *commandeer) newWatcher(dirList ...string) (*watcher.Batcher, error) {
 
 					dir, name := filepath.Split(ev.Name)
 
-					contentMapped = Hugo.ContentChanges.GetSymbolicLinkMappings(dir)
+					contentMapped = c.hugo.ContentChanges.GetSymbolicLinkMappings(dir)
 
 					if len(contentMapped) == 0 {
 						filtered = append(filtered, ev)
@@ -1036,7 +879,7 @@ func (c *commandeer) newWatcher(dirList ...string) (*watcher.Batcher, error) {
 						}
 					}
 
-					if !buildWatch && !c.Cfg.GetBool("disableLiveReload") {
+					if !c.h.buildWatch && !c.Cfg.GetBool("disableLiveReload") {
 						// Will block forever trying to write to a channel that nobody is reading if livereload isn't initialized
 
 						// force refresh when more than one file
@@ -1053,7 +896,7 @@ func (c *commandeer) newWatcher(dirList ...string) (*watcher.Batcher, error) {
 				}
 
 				if len(dynamicEvents) > 0 {
-					doLiveReload := !buildWatch && !c.Cfg.GetBool("disableLiveReload")
+					doLiveReload := !c.h.buildWatch && !c.Cfg.GetBool("disableLiveReload")
 					onePageName := pickOneWriteOrCreatePath(dynamicEvents)
 
 					c.Logger.FEEDBACK.Println("\nChange detected, rebuilding site")
@@ -1072,7 +915,7 @@ func (c *commandeer) newWatcher(dirList ...string) (*watcher.Batcher, error) {
 
 						if navigate {
 							if onePageName != "" {
-								p = Hugo.GetContentPage(onePageName)
+								p = c.hugo.GetContentPage(onePageName)
 							}
 
 						}

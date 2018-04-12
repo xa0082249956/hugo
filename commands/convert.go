@@ -28,64 +28,75 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var outputDir string
-var unsafe bool
+var (
+	_ cmder = (*convertCmd)(nil)
+)
 
-var convertCmd = &cobra.Command{
-	Use:   "convert",
-	Short: "Convert your content to different formats",
-	Long: `Convert your content (e.g. front matter) to different formats.
+type convertCmd struct {
+	hugoBuilderCommon
+
+	outputDir string
+	unsafe    bool
+
+	*baseCmd
+}
+
+func newConvertCmd() *convertCmd {
+	cc := &convertCmd{}
+
+	cc.baseCmd = newBaseCmd(&cobra.Command{
+		Use:   "convert",
+		Short: "Convert your content to different formats",
+		Long: `Convert your content (e.g. front matter) to different formats.
 
 See convert's subcommands toJSON, toTOML and toYAML for more information.`,
-	RunE: nil,
-}
+		RunE: nil,
+	})
 
-var toJSONCmd = &cobra.Command{
-	Use:   "toJSON",
-	Short: "Convert front matter to JSON",
-	Long: `toJSON converts all front matter in the content directory
+	cc.cmd.AddCommand(
+		&cobra.Command{
+			Use:   "toJSON",
+			Short: "Convert front matter to JSON",
+			Long: `toJSON converts all front matter in the content directory
 to use JSON for the front matter.`,
-	RunE: func(cmd *cobra.Command, args []string) error {
-		return convertContents(rune([]byte(parser.JSONLead)[0]))
-	},
-}
-
-var toTOMLCmd = &cobra.Command{
-	Use:   "toTOML",
-	Short: "Convert front matter to TOML",
-	Long: `toTOML converts all front matter in the content directory
+			RunE: func(cmd *cobra.Command, args []string) error {
+				return cc.convertContents(rune([]byte(parser.JSONLead)[0]))
+			},
+		},
+		&cobra.Command{
+			Use:   "toTOML",
+			Short: "Convert front matter to TOML",
+			Long: `toTOML converts all front matter in the content directory
 to use TOML for the front matter.`,
-	RunE: func(cmd *cobra.Command, args []string) error {
-		return convertContents(rune([]byte(parser.TOMLLead)[0]))
-	},
-}
-
-var toYAMLCmd = &cobra.Command{
-	Use:   "toYAML",
-	Short: "Convert front matter to YAML",
-	Long: `toYAML converts all front matter in the content directory
+			RunE: func(cmd *cobra.Command, args []string) error {
+				return cc.convertContents(rune([]byte(parser.TOMLLead)[0]))
+			},
+		},
+		&cobra.Command{
+			Use:   "toYAML",
+			Short: "Convert front matter to YAML",
+			Long: `toYAML converts all front matter in the content directory
 to use YAML for the front matter.`,
-	RunE: func(cmd *cobra.Command, args []string) error {
-		return convertContents(rune([]byte(parser.YAMLLead)[0]))
-	},
+			RunE: func(cmd *cobra.Command, args []string) error {
+				return cc.convertContents(rune([]byte(parser.YAMLLead)[0]))
+			},
+		},
+	)
+
+	cc.cmd.PersistentFlags().StringVarP(&cc.outputDir, "output", "o", "", "filesystem path to write files to")
+	cc.cmd.PersistentFlags().StringVarP(&cc.source, "source", "s", "", "filesystem path to read files relative from")
+	cc.cmd.PersistentFlags().BoolVar(&cc.unsafe, "unsafe", false, "enable less safe operations, please backup first")
+	cc.cmd.PersistentFlags().SetAnnotation("source", cobra.BashCompSubdirsInDir, []string{})
+
+	return cc
 }
 
-func init() {
-	convertCmd.AddCommand(toJSONCmd)
-	convertCmd.AddCommand(toTOMLCmd)
-	convertCmd.AddCommand(toYAMLCmd)
-	convertCmd.PersistentFlags().StringVarP(&outputDir, "output", "o", "", "filesystem path to write files to")
-	convertCmd.PersistentFlags().StringVarP(&source, "source", "s", "", "filesystem path to read files relative from")
-	convertCmd.PersistentFlags().BoolVar(&unsafe, "unsafe", false, "enable less safe operations, please backup first")
-	convertCmd.PersistentFlags().SetAnnotation("source", cobra.BashCompSubdirsInDir, []string{})
-}
-
-func convertContents(mark rune) error {
-	if outputDir == "" && !unsafe {
+func (cc *convertCmd) convertContents(mark rune) error {
+	if cc.outputDir == "" && !cc.unsafe {
 		return newUserError("Unsafe operation not allowed, use --unsafe or set a different output path")
 	}
 
-	c, err := InitializeConfig(false, nil)
+	c, err := initializeConfig(false, &cc.hugoBuilderCommon, cc, nil)
 	if err != nil {
 		return err
 	}
@@ -103,17 +114,17 @@ func convertContents(mark rune) error {
 
 	site.Log.FEEDBACK.Println("processing", len(site.AllPages), "content files")
 	for _, p := range site.AllPages {
-		if err := convertAndSavePage(p, site, mark); err != nil {
+		if err := cc.convertAndSavePage(p, site, mark); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func convertAndSavePage(p *hugolib.Page, site *hugolib.Site, mark rune) error {
+func (cc *convertCmd) convertAndSavePage(p *hugolib.Page, site *hugolib.Site, mark rune) error {
 	// The resources are not in .Site.AllPages.
 	for _, r := range p.Resources.ByType("page") {
-		if err := convertAndSavePage(r.(*hugolib.Page), site, mark); err != nil {
+		if err := cc.convertAndSavePage(r.(*hugolib.Page), site, mark); err != nil {
 			return err
 		}
 	}
@@ -171,8 +182,8 @@ func convertAndSavePage(p *hugolib.Page, site *hugolib.Site, mark rune) error {
 	}
 
 	newFilename := p.Filename()
-	if outputDir != "" {
-		newFilename = filepath.Join(outputDir, p.Dir(), newPage.LogicalName())
+	if cc.outputDir != "" {
+		newFilename = filepath.Join(cc.outputDir, p.Dir(), newPage.LogicalName())
 	}
 
 	if err = newPage.SaveSourceAs(newFilename); err != nil {

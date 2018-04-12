@@ -1,4 +1,4 @@
-// Copyright 2015 The Hugo Authors. All rights reserved.
+// Copyright 2018 The Hugo Authors. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,25 +17,20 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var _ cmder = (*genCmd)(nil)
+var _ cmder = (*checkCmd)(nil)
 
-type genCmd struct {
+type checkCmd struct {
 	*baseCmd
 }
 
-func newGenCmd() *genCmd {
-	cc := &genCmd{}
-	cc.baseCmd = newBaseCmd(&cobra.Command{
-		Use:   "gen",
-		Short: "A collection of several useful generators.",
-	})
+func newCheckCmd() *checkCmd {
+	cc := &checkCmd{baseCmd: &baseCmd{cmd: &cobra.Command{
+		Use:   "check",
+		Short: "Contains some verification checks",
+	},
+	}}
 
-	cc.cmd.AddCommand(
-		newGenautocompleteCmd().getCommand(),
-		newGenDocCmd().getCommand(),
-		newGenManCmd().getCommand(),
-		createGenDocsHelper().getCommand(),
-		createGenChromaStyles().getCommand())
+	cc.cmd.AddCommand(newLimitCmd().getCommand())
 
 	return cc
 }

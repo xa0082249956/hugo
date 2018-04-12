@@ -22,18 +22,29 @@ import (
 	"github.com/spf13/viper"
 )
 
-var configCmd = &cobra.Command{
-	Use:   "config",
-	Short: "Print the site configuration",
-	Long:  `Print the site configuration, both default and custom settings.`,
+var _ cmder = (*configCmd)(nil)
+
+type configCmd struct {
+	hugoBuilderCommon
+	*baseCmd
 }
 
-func init() {
-	configCmd.RunE = printConfig
+func newConfigCmd() *configCmd {
+	cc := &configCmd{}
+	cc.baseCmd = newBaseCmd(&cobra.Command{
+		Use:   "config",
+		Short: "Print the site configuration",
+		Long:  `Print the site configuration, both default and custom settings.`,
+		RunE:  cc.printConfig,
+	})
+
+	cc.cmd.Flags().StringVarP(&cc.source, "source", "s", "", "filesystem path to read files relative from")
+
+	return cc
 }
 
-func printConfig(cmd *cobra.Command, args []string) error {
-	cfg, err := InitializeConfig(false, nil, configCmd)
+func (c *configCmd) printConfig(cmd *cobra.Command, args []string) error {
+	cfg, err := initializeConfig(false, &c.hugoBuilderCommon, c, nil)
 
 	if err != nil {
 		return err

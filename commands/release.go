@@ -22,10 +22,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func init() {
-	HugoCmd.AddCommand(createReleaser().cmd)
-}
-
 type releaseCommandeer struct {
 	cmd *cobra.Command
 
