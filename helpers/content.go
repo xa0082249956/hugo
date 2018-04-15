@@ -463,7 +463,7 @@ func (c ContentSpec) RenderBytes(ctx *RenderingContext) []byte {
 	case "org":
 		return orgRender(ctx, c)
 	case "pandoc":
-		return getPandocContent(ctx, c.cfg.GetStringSlice("pandocFlags"))
+		return getPandocContent(ctx)
 	}
 }
 
@@ -688,7 +688,7 @@ func getRstContent(ctx *RenderingContext) []byte {
 }
 
 // getPandocContent calls pandoc as an external helper to convert pandoc markdown to HTML.
-func getPandocContent(ctx *RenderingContext, prm []string) []byte {
+func getPandocContent(ctx *RenderingContext) []byte {
 	path, err := exec.LookPath("pandoc")
 	if err != nil {
 		jww.ERROR.Println("pandoc not found in $PATH: Please install.\n",
@@ -697,6 +697,7 @@ func getPandocContent(ctx *RenderingContext, prm []string) []byte {
 	}
 
 	args := []string{"--mathjax"}
+	prm := ctx.Cfg.GetStringSlice("pandocFlags")
 	if prm != nil {
 		args = prm
 	}
