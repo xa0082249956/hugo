@@ -16,7 +16,7 @@ package source
 import (
 	"testing"
 
-	"github.com/gohugoio/hugo/helpers"
+	"github.com/xa0082249956/hugo/helpers"
 
 	"fmt"
 
@@ -25,12 +25,12 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/gohugoio/hugo/config"
+	"github.com/xa0082249956/hugo/config"
 	"github.com/spf13/afero"
 
 	jww "github.com/spf13/jwalterweatherman"
 
-	"github.com/gohugoio/hugo/hugofs"
+	"github.com/xa0082249956/hugo/hugofs"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/require"
 )

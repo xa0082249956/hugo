@@ -28,9 +28,9 @@ import (
 	"github.com/spf13/cast"
 
 	"github.com/gobwas/glob"
-	"github.com/gohugoio/hugo/helpers"
-	"github.com/gohugoio/hugo/media"
-	"github.com/gohugoio/hugo/source"
+	"github.com/xa0082249956/hugo/helpers"
+	"github.com/xa0082249956/hugo/media"
+	"github.com/xa0082249956/hugo/source"
 )
 
 var (

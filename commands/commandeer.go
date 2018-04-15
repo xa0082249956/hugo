@@ -19,22 +19,22 @@ import (
 	"sync"
 	"time"
 
-	"github.com/gohugoio/hugo/config"
+	"github.com/xa0082249956/hugo/config"
 
 	"github.com/spf13/cobra"
 
-	"github.com/gohugoio/hugo/utils"
+	"github.com/xa0082249956/hugo/utils"
 
 	"github.com/spf13/afero"
 
-	"github.com/gohugoio/hugo/hugolib"
+	"github.com/xa0082249956/hugo/hugolib"
 
 	"github.com/bep/debounce"
-	"github.com/gohugoio/hugo/common/types"
-	"github.com/gohugoio/hugo/deps"
-	"github.com/gohugoio/hugo/helpers"
-	"github.com/gohugoio/hugo/hugofs"
-	src "github.com/gohugoio/hugo/source"
+	"github.com/xa0082249956/hugo/common/types"
+	"github.com/xa0082249956/hugo/deps"
+	"github.com/xa0082249956/hugo/helpers"
+	"github.com/xa0082249956/hugo/hugofs"
+	src "github.com/xa0082249956/hugo/source"
 )
 
 type commandeer struct {

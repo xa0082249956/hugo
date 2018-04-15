@@ -20,8 +20,8 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/gohugoio/hugo/helpers"
-	"github.com/gohugoio/hugo/output"
+	"github.com/xa0082249956/hugo/helpers"
+	"github.com/xa0082249956/hugo/output"
 )
 
 // targetPathDescriptor describes how a file path for a given resource

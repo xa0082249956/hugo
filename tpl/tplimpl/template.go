@@ -24,14 +24,14 @@ import (
 
 	"os"
 
-	"github.com/gohugoio/hugo/output"
+	"github.com/xa0082249956/hugo/output"
 
 	"path/filepath"
 	"sync"
 
-	"github.com/gohugoio/hugo/deps"
-	"github.com/gohugoio/hugo/helpers"
-	"github.com/gohugoio/hugo/tpl"
+	"github.com/xa0082249956/hugo/deps"
+	"github.com/xa0082249956/hugo/helpers"
+	"github.com/xa0082249956/hugo/tpl"
 	"github.com/spf13/afero"
 )
 

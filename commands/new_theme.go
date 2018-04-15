@@ -21,9 +21,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gohugoio/hugo/hugofs"
+	"github.com/xa0082249956/hugo/hugofs"
 
-	"github.com/gohugoio/hugo/helpers"
+	"github.com/xa0082249956/hugo/helpers"
 	"github.com/spf13/cobra"
 	jww "github.com/spf13/jwalterweatherman"
 )

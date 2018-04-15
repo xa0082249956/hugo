@@ -17,13 +17,13 @@ import (
 	"fmt"
 	"time"
 
-	src "github.com/gohugoio/hugo/source"
+	src "github.com/xa0082249956/hugo/source"
 
-	"github.com/gohugoio/hugo/hugolib"
+	"github.com/xa0082249956/hugo/hugolib"
 
 	"path/filepath"
 
-	"github.com/gohugoio/hugo/parser"
+	"github.com/xa0082249956/hugo/parser"
 	"github.com/spf13/cast"
 	"github.com/spf13/cobra"
 )

@@ -19,7 +19,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/gohugoio/hugo/output"
+	"github.com/xa0082249956/hugo/output"
 )
 
 // renderPages renders pages each corresponding to a markdown file.

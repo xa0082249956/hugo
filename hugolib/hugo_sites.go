@@ -21,14 +21,14 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/gohugoio/hugo/resource"
+	"github.com/xa0082249956/hugo/resource"
 
-	"github.com/gohugoio/hugo/deps"
-	"github.com/gohugoio/hugo/helpers"
+	"github.com/xa0082249956/hugo/deps"
+	"github.com/xa0082249956/hugo/helpers"
 
-	"github.com/gohugoio/hugo/i18n"
-	"github.com/gohugoio/hugo/tpl"
-	"github.com/gohugoio/hugo/tpl/tplimpl"
+	"github.com/xa0082249956/hugo/i18n"
+	"github.com/xa0082249956/hugo/tpl"
+	"github.com/xa0082249956/hugo/tpl/tplimpl"
 )
 
 // HugoSites represents the sites to build. Each site represents a language.

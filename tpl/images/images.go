@@ -26,7 +26,7 @@ import (
 	// Import webp codec
 	_ "golang.org/x/image/webp"
 
-	"github.com/gohugoio/hugo/deps"
+	"github.com/xa0082249956/hugo/deps"
 	"github.com/spf13/cast"
 )
 

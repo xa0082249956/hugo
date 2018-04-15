@@ -26,13 +26,13 @@ import (
 
 	"github.com/spf13/afero"
 
-	"github.com/gohugoio/hugo/output"
+	"github.com/xa0082249956/hugo/output"
 
-	"github.com/gohugoio/hugo/media"
+	"github.com/xa0082249956/hugo/media"
 
-	"github.com/gohugoio/hugo/deps"
-	"github.com/gohugoio/hugo/helpers"
-	"github.com/gohugoio/hugo/tpl"
+	"github.com/xa0082249956/hugo/deps"
+	"github.com/xa0082249956/hugo/helpers"
+	"github.com/xa0082249956/hugo/tpl"
 	"github.com/stretchr/testify/require"
 )
 

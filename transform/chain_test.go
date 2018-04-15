@@ -19,7 +19,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/gohugoio/hugo/helpers"
+	"github.com/xa0082249956/hugo/helpers"
 	"github.com/stretchr/testify/assert"
 )
 

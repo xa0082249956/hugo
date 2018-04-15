@@ -18,11 +18,11 @@ import (
 
 	"fmt"
 
-	"github.com/gohugoio/hugo/deps"
+	"github.com/xa0082249956/hugo/deps"
 	"github.com/spf13/afero"
 
-	"github.com/gohugoio/hugo/helpers"
-	"github.com/gohugoio/hugo/hugofs"
+	"github.com/xa0082249956/hugo/helpers"
+	"github.com/xa0082249956/hugo/hugofs"
 	"github.com/stretchr/testify/require"
 )
 

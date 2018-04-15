@@ -17,21 +17,21 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/gohugoio/hugo/tpl/tplimpl"
+	"github.com/xa0082249956/hugo/tpl/tplimpl"
 
 	"github.com/spf13/afero"
 
-	"github.com/gohugoio/hugo/deps"
+	"github.com/xa0082249956/hugo/deps"
 
 	"io/ioutil"
 	"os"
 
-	"github.com/gohugoio/hugo/helpers"
+	"github.com/xa0082249956/hugo/helpers"
 
 	"log"
 
-	"github.com/gohugoio/hugo/config"
-	"github.com/gohugoio/hugo/hugofs"
+	"github.com/xa0082249956/hugo/config"
+	"github.com/xa0082249956/hugo/hugofs"
 	jww "github.com/spf13/jwalterweatherman"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/require"

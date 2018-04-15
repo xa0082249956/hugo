@@ -21,8 +21,8 @@ import (
 
 	"strings"
 
-	"github.com/gohugoio/hugo/helpers"
-	"github.com/gohugoio/hugo/resource"
+	"github.com/xa0082249956/hugo/helpers"
+	"github.com/xa0082249956/hugo/resource"
 )
 
 var (

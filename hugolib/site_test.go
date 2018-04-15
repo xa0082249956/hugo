@@ -21,10 +21,10 @@ import (
 
 	"github.com/markbates/inflect"
 
-	"github.com/gohugoio/hugo/helpers"
+	"github.com/xa0082249956/hugo/helpers"
 
-	"github.com/gohugoio/hugo/deps"
-	"github.com/gohugoio/hugo/hugofs"
+	"github.com/xa0082249956/hugo/deps"
+	"github.com/xa0082249956/hugo/hugofs"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

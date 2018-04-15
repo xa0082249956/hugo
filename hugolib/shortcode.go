@@ -24,13 +24,13 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/gohugoio/hugo/output"
+	"github.com/xa0082249956/hugo/output"
 
-	"github.com/gohugoio/hugo/media"
+	"github.com/xa0082249956/hugo/media"
 
-	bp "github.com/gohugoio/hugo/bufferpool"
-	"github.com/gohugoio/hugo/helpers"
-	"github.com/gohugoio/hugo/tpl"
+	bp "github.com/xa0082249956/hugo/bufferpool"
+	"github.com/xa0082249956/hugo/helpers"
+	"github.com/xa0082249956/hugo/tpl"
 )
 
 // ShortcodeWithPage is the "." context in a shortcode template.

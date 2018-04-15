@@ -25,13 +25,13 @@ import (
 
 	"github.com/spf13/afero"
 
-	"github.com/gohugoio/hugo/hugofs"
+	"github.com/xa0082249956/hugo/hugofs"
 
-	"github.com/gohugoio/hugo/helpers"
+	"github.com/xa0082249956/hugo/helpers"
 
 	"golang.org/x/sync/errgroup"
 
-	"github.com/gohugoio/hugo/source"
+	"github.com/xa0082249956/hugo/source"
 	jww "github.com/spf13/jwalterweatherman"
 )
 

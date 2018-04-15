@@ -17,7 +17,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/gohugoio/hugo/compare"
+	"github.com/xa0082249956/hugo/compare"
 	"github.com/spf13/cast"
 )
 

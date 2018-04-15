@@ -16,8 +16,8 @@ package hugolib
 import (
 	"sync"
 
-	"github.com/gohugoio/hugo/common/types"
-	"github.com/gohugoio/hugo/related"
+	"github.com/xa0082249956/hugo/common/types"
+	"github.com/xa0082249956/hugo/related"
 	"github.com/spf13/cast"
 )
 

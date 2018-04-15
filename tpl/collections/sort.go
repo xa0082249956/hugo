@@ -19,7 +19,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/gohugoio/hugo/tpl/compare"
+	"github.com/xa0082249956/hugo/tpl/compare"
 	"github.com/spf13/cast"
 )
 

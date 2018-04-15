@@ -16,8 +16,8 @@ package hugolib
 import (
 	"strings"
 
-	"github.com/gohugoio/hugo/helpers"
-	"github.com/gohugoio/hugo/source"
+	"github.com/xa0082249956/hugo/helpers"
+	"github.com/xa0082249956/hugo/source"
 )
 
 // fileInfo implements the File and ReadableFile interface.

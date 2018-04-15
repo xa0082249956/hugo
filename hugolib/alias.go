@@ -22,11 +22,11 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/gohugoio/hugo/tpl"
+	"github.com/xa0082249956/hugo/tpl"
 
 	jww "github.com/spf13/jwalterweatherman"
 
-	"github.com/gohugoio/hugo/helpers"
+	"github.com/xa0082249956/hugo/helpers"
 )
 
 const (

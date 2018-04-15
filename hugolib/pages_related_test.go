@@ -18,8 +18,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/gohugoio/hugo/common/types"
-	"github.com/gohugoio/hugo/deps"
+	"github.com/xa0082249956/hugo/common/types"
+	"github.com/xa0082249956/hugo/deps"
 
 	"github.com/stretchr/testify/require"
 )

@@ -18,9 +18,9 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/gohugoio/hugo/helpers"
+	"github.com/xa0082249956/hugo/helpers"
 
-	"github.com/gohugoio/hugo/hugofs"
+	"github.com/xa0082249956/hugo/hugofs"
 
 	"github.com/spf13/viper"
 )

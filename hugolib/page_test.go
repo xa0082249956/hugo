@@ -26,13 +26,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gohugoio/hugo/hugofs"
+	"github.com/xa0082249956/hugo/hugofs"
 	"github.com/spf13/afero"
 
 	"github.com/spf13/viper"
 
-	"github.com/gohugoio/hugo/deps"
-	"github.com/gohugoio/hugo/helpers"
+	"github.com/xa0082249956/hugo/deps"
+	"github.com/xa0082249956/hugo/helpers"
 	"github.com/spf13/cast"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

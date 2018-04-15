@@ -14,12 +14,12 @@ import (
 
 	jww "github.com/spf13/jwalterweatherman"
 
-	"github.com/gohugoio/hugo/config"
-	"github.com/gohugoio/hugo/deps"
+	"github.com/xa0082249956/hugo/config"
+	"github.com/xa0082249956/hugo/deps"
 	"github.com/spf13/afero"
 
-	"github.com/gohugoio/hugo/helpers"
-	"github.com/gohugoio/hugo/tpl"
+	"github.com/xa0082249956/hugo/helpers"
+	"github.com/xa0082249956/hugo/tpl"
 	"github.com/spf13/viper"
 
 	"io/ioutil"
@@ -27,7 +27,7 @@ import (
 
 	"log"
 
-	"github.com/gohugoio/hugo/hugofs"
+	"github.com/xa0082249956/hugo/hugofs"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

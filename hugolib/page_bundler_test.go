@@ -20,21 +20,21 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/gohugoio/hugo/helpers"
+	"github.com/xa0082249956/hugo/helpers"
 
 	"io"
 
 	"github.com/spf13/afero"
 
-	"github.com/gohugoio/hugo/media"
+	"github.com/xa0082249956/hugo/media"
 
 	"path/filepath"
 
 	"fmt"
 
-	"github.com/gohugoio/hugo/deps"
-	"github.com/gohugoio/hugo/hugofs"
-	"github.com/gohugoio/hugo/resource"
+	"github.com/xa0082249956/hugo/deps"
+	"github.com/xa0082249956/hugo/hugofs"
+	"github.com/xa0082249956/hugo/resource"
 	"github.com/spf13/viper"
 
 	"github.com/stretchr/testify/require"

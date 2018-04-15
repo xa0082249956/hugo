@@ -26,8 +26,8 @@ import (
 	"unicode/utf8"
 
 	"github.com/chaseadamsio/goorgeous"
-	bp "github.com/gohugoio/hugo/bufferpool"
-	"github.com/gohugoio/hugo/config"
+	bp "github.com/xa0082249956/hugo/bufferpool"
+	"github.com/xa0082249956/hugo/config"
 	"github.com/miekg/mmark"
 	"github.com/mitchellh/mapstructure"
 	"github.com/russross/blackfriday"

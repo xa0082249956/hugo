@@ -20,8 +20,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/gohugoio/hugo/deps"
-	"github.com/gohugoio/hugo/tpl"
+	"github.com/xa0082249956/hugo/deps"
+	"github.com/xa0082249956/hugo/tpl"
 )
 
 const sitemapTemplate = `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">

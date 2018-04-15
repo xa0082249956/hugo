@@ -5,7 +5,7 @@ import (
 	"errors"
 	"strings"
 
-	"github.com/gohugoio/hugo/parser"
+	"github.com/xa0082249956/hugo/parser"
 	"github.com/spf13/cast"
 )
 

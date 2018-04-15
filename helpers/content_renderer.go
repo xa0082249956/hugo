@@ -17,7 +17,7 @@ import (
 	"bytes"
 	"strings"
 
-	"github.com/gohugoio/hugo/config"
+	"github.com/xa0082249956/hugo/config"
 	"github.com/miekg/mmark"
 	"github.com/russross/blackfriday"
 )

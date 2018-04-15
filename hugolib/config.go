@@ -21,8 +21,8 @@ import (
 	"io"
 	"strings"
 
-	"github.com/gohugoio/hugo/config"
-	"github.com/gohugoio/hugo/helpers"
+	"github.com/xa0082249956/hugo/config"
+	"github.com/xa0082249956/hugo/helpers"
 	"github.com/spf13/afero"
 	"github.com/spf13/viper"
 )

@@ -18,8 +18,8 @@ import (
 	"html"
 	"html/template"
 
-	"github.com/gohugoio/hugo/deps"
-	"github.com/gohugoio/hugo/helpers"
+	"github.com/xa0082249956/hugo/deps"
+	"github.com/xa0082249956/hugo/helpers"
 	"github.com/spf13/cast"
 )
 

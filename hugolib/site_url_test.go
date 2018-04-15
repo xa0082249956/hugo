@@ -20,7 +20,7 @@ import (
 
 	"html/template"
 
-	"github.com/gohugoio/hugo/deps"
+	"github.com/xa0082249956/hugo/deps"
 	"github.com/stretchr/testify/require"
 )
 

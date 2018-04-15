@@ -20,12 +20,12 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/gohugoio/hugo/resource"
+	"github.com/xa0082249956/hugo/resource"
 
-	"github.com/gohugoio/hugo/media"
+	"github.com/xa0082249956/hugo/media"
 
-	"github.com/gohugoio/hugo/helpers"
-	"github.com/gohugoio/hugo/output"
+	"github.com/xa0082249956/hugo/helpers"
+	"github.com/xa0082249956/hugo/output"
 )
 
 // PageOutput represents one of potentially many output formats of a given

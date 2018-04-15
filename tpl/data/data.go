@@ -22,7 +22,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gohugoio/hugo/deps"
+	"github.com/xa0082249956/hugo/deps"
 	jww "github.com/spf13/jwalterweatherman"
 )
 

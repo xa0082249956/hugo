@@ -19,9 +19,9 @@ import (
 
 	"github.com/spf13/afero"
 
-	"github.com/gohugoio/hugo/common/types"
-	"github.com/gohugoio/hugo/config"
-	"github.com/gohugoio/hugo/hugofs"
+	"github.com/xa0082249956/hugo/common/types"
+	"github.com/xa0082249956/hugo/config"
+	"github.com/xa0082249956/hugo/hugofs"
 	"github.com/spf13/cast"
 )
 

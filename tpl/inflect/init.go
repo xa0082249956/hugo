@@ -14,8 +14,8 @@
 package inflect
 
 import (
-	"github.com/gohugoio/hugo/deps"
-	"github.com/gohugoio/hugo/tpl/internal"
+	"github.com/xa0082249956/hugo/deps"
+	"github.com/xa0082249956/hugo/tpl/internal"
 )
 
 const name = "inflect"

@@ -16,7 +16,7 @@ package commands
 import (
 	"path/filepath"
 
-	"github.com/gohugoio/hugo/hugolib"
+	"github.com/xa0082249956/hugo/hugolib"
 	"github.com/spf13/cobra"
 	jww "github.com/spf13/jwalterweatherman"
 )

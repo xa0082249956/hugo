@@ -20,11 +20,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gohugoio/hugo/helpers"
-	"github.com/gohugoio/hugo/source"
+	"github.com/xa0082249956/hugo/helpers"
+	"github.com/xa0082249956/hugo/source"
 
-	"github.com/gohugoio/hugo/hugolib"
-	"github.com/gohugoio/hugo/tpl"
+	"github.com/xa0082249956/hugo/hugolib"
+	"github.com/xa0082249956/hugo/tpl"
 	"github.com/spf13/afero"
 )
 

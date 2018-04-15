@@ -18,9 +18,9 @@ import (
 	"path"
 	"strings"
 
-	"github.com/gohugoio/hugo/config"
-	"github.com/gohugoio/hugo/helpers"
-	"github.com/gohugoio/hugo/output"
+	"github.com/xa0082249956/hugo/config"
+	"github.com/xa0082249956/hugo/helpers"
+	"github.com/xa0082249956/hugo/output"
 	"github.com/spf13/cast"
 )
 

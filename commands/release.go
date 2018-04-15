@@ -18,7 +18,7 @@ package commands
 import (
 	"errors"
 
-	"github.com/gohugoio/hugo/releaser"
+	"github.com/xa0082249956/hugo/releaser"
 	"github.com/spf13/cobra"
 )
 

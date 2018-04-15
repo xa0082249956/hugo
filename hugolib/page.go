@@ -20,16 +20,16 @@ import (
 	"reflect"
 	"unicode"
 
-	"github.com/gohugoio/hugo/related"
+	"github.com/xa0082249956/hugo/related"
 
 	"github.com/bep/gitmap"
 
-	"github.com/gohugoio/hugo/helpers"
-	"github.com/gohugoio/hugo/hugolib/pagemeta"
-	"github.com/gohugoio/hugo/resource"
+	"github.com/xa0082249956/hugo/helpers"
+	"github.com/xa0082249956/hugo/hugolib/pagemeta"
+	"github.com/xa0082249956/hugo/resource"
 
-	"github.com/gohugoio/hugo/output"
-	"github.com/gohugoio/hugo/parser"
+	"github.com/xa0082249956/hugo/output"
+	"github.com/xa0082249956/hugo/parser"
 	"github.com/mitchellh/mapstructure"
 
 	"html/template"
@@ -42,9 +42,9 @@ import (
 	"time"
 	"unicode/utf8"
 
-	bp "github.com/gohugoio/hugo/bufferpool"
-	"github.com/gohugoio/hugo/compare"
-	"github.com/gohugoio/hugo/source"
+	bp "github.com/xa0082249956/hugo/bufferpool"
+	"github.com/xa0082249956/hugo/compare"
+	"github.com/xa0082249956/hugo/source"
 	"github.com/spf13/cast"
 )
 

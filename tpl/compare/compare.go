@@ -19,7 +19,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/gohugoio/hugo/compare"
+	"github.com/xa0082249956/hugo/compare"
 )
 
 // New returns a new instance of the compare-namespaced template functions.

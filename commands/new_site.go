@@ -21,16 +21,16 @@ import (
 
 	"errors"
 
-	"github.com/gohugoio/hugo/create"
+	"github.com/xa0082249956/hugo/create"
 
 	"fmt"
 
 	"strings"
 
-	"github.com/gohugoio/hugo/parser"
+	"github.com/xa0082249956/hugo/parser"
 
-	"github.com/gohugoio/hugo/helpers"
-	"github.com/gohugoio/hugo/hugofs"
+	"github.com/xa0082249956/hugo/helpers"
+	"github.com/xa0082249956/hugo/hugofs"
 	"github.com/spf13/cobra"
 	jww "github.com/spf13/jwalterweatherman"
 )

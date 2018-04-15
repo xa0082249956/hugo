@@ -31,10 +31,10 @@ import (
 	"github.com/alecthomas/chroma/formatters/html"
 	"github.com/alecthomas/chroma/lexers"
 	"github.com/alecthomas/chroma/styles"
-	bp "github.com/gohugoio/hugo/bufferpool"
+	bp "github.com/xa0082249956/hugo/bufferpool"
 
-	"github.com/gohugoio/hugo/config"
-	"github.com/gohugoio/hugo/hugofs"
+	"github.com/xa0082249956/hugo/config"
+	"github.com/xa0082249956/hugo/hugofs"
 	jww "github.com/spf13/jwalterweatherman"
 )
 

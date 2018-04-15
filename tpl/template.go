@@ -22,8 +22,8 @@ import (
 	"html/template"
 	texttemplate "text/template"
 
-	bp "github.com/gohugoio/hugo/bufferpool"
-	"github.com/gohugoio/hugo/metrics"
+	bp "github.com/xa0082249956/hugo/bufferpool"
+	"github.com/xa0082249956/hugo/metrics"
 )
 
 var (

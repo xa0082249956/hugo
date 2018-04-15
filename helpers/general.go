@@ -30,7 +30,7 @@ import (
 
 	"github.com/jdkato/prose/transform"
 
-	bp "github.com/gohugoio/hugo/bufferpool"
+	bp "github.com/xa0082249956/hugo/bufferpool"
 	"github.com/spf13/cast"
 	jww "github.com/spf13/jwalterweatherman"
 	"github.com/spf13/pflag"

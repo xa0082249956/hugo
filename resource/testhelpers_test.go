@@ -13,9 +13,9 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/gohugoio/hugo/helpers"
-	"github.com/gohugoio/hugo/hugofs"
-	"github.com/gohugoio/hugo/media"
+	"github.com/xa0082249956/hugo/helpers"
+	"github.com/xa0082249956/hugo/hugofs"
+	"github.com/xa0082249956/hugo/media"
 	"github.com/spf13/afero"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/require"

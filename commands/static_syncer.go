@@ -18,8 +18,8 @@ import (
 	"path/filepath"
 
 	"github.com/fsnotify/fsnotify"
-	"github.com/gohugoio/hugo/helpers"
-	src "github.com/gohugoio/hugo/source"
+	"github.com/xa0082249956/hugo/helpers"
+	src "github.com/xa0082249956/hugo/source"
 	"github.com/spf13/fsync"
 )
 

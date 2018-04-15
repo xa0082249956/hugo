@@ -32,19 +32,19 @@ import (
 	"strings"
 	"time"
 
-	src "github.com/gohugoio/hugo/source"
+	src "github.com/xa0082249956/hugo/source"
 
-	"github.com/gohugoio/hugo/config"
+	"github.com/xa0082249956/hugo/config"
 
-	"github.com/gohugoio/hugo/parser"
+	"github.com/xa0082249956/hugo/parser"
 	flag "github.com/spf13/pflag"
 
 	"github.com/fsnotify/fsnotify"
-	"github.com/gohugoio/hugo/helpers"
-	"github.com/gohugoio/hugo/hugolib"
-	"github.com/gohugoio/hugo/livereload"
-	"github.com/gohugoio/hugo/utils"
-	"github.com/gohugoio/hugo/watcher"
+	"github.com/xa0082249956/hugo/helpers"
+	"github.com/xa0082249956/hugo/hugolib"
+	"github.com/xa0082249956/hugo/livereload"
+	"github.com/xa0082249956/hugo/utils"
+	"github.com/xa0082249956/hugo/watcher"
 	"github.com/spf13/afero"
 	"github.com/spf13/cobra"
 	"github.com/spf13/fsync"

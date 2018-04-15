@@ -20,9 +20,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gohugoio/hugo/helpers"
+	"github.com/xa0082249956/hugo/helpers"
 
-	"github.com/gohugoio/hugo/config"
+	"github.com/xa0082249956/hugo/config"
 	"github.com/spf13/cast"
 	jww "github.com/spf13/jwalterweatherman"
 )

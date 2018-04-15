@@ -17,8 +17,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/gohugoio/hugo/helpers"
-	"github.com/gohugoio/hugo/hugofs"
+	"github.com/xa0082249956/hugo/helpers"
+	"github.com/xa0082249956/hugo/hugofs"
 	"github.com/spf13/cobra"
 	"github.com/spf13/cobra/doc"
 	jww "github.com/spf13/jwalterweatherman"

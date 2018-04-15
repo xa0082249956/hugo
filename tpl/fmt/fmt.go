@@ -15,7 +15,7 @@ package fmt
 
 import (
 	_fmt "fmt"
-	"github.com/gohugoio/hugo/helpers"
+	"github.com/xa0082249956/hugo/helpers"
 )
 
 // New returns a new instance of the fmt-namespaced template functions.

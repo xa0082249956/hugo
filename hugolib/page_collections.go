@@ -18,8 +18,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/gohugoio/hugo/cache"
-	"github.com/gohugoio/hugo/helpers"
+	"github.com/xa0082249956/hugo/cache"
+	"github.com/xa0082249956/hugo/helpers"
 )
 
 // PageCollections contains the page collections for a site.

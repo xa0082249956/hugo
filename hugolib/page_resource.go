@@ -14,7 +14,7 @@
 package hugolib
 
 import (
-	"github.com/gohugoio/hugo/resource"
+	"github.com/xa0082249956/hugo/resource"
 )
 
 var (

@@ -19,7 +19,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/gohugoio/hugo/media"
+	"github.com/xa0082249956/hugo/media"
 
 	"github.com/stretchr/testify/require"
 )
