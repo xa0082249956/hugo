@@ -34,6 +34,7 @@ import (
 	_ "github.com/xa0082249956/hugo/tpl/math"
 	_ "github.com/xa0082249956/hugo/tpl/os"
 	_ "github.com/xa0082249956/hugo/tpl/partials"
+	_ "github.com/xa0082249956/hugo/tpl/path"
 	_ "github.com/xa0082249956/hugo/tpl/safe"
 	_ "github.com/xa0082249956/hugo/tpl/strings"
 	_ "github.com/xa0082249956/hugo/tpl/time"

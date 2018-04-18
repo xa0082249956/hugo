@@ -1,4 +1,4 @@
-// Copyright 2017 The Hugo Authors. All rights reserved.
+// Copyright 2018 The Hugo Authors. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -11,14 +11,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package urls
+package path
 
 import (
-	"github.com/xa0082249956/hugo/deps"
-	"github.com/xa0082249956/hugo/tpl/internal"
+	"fmt"
+	"path/filepath"
+
+	"github.com/gohugoio/hugo/deps"
+	"github.com/gohugoio/hugo/helpers"
+	"github.com/gohugoio/hugo/tpl/internal"
 )
 
-const name = "urls"
+const name = "path"
 
 func init() {
 	f := func(d *deps.Deps) *internal.TemplateFuncsNamespace {
@@ -29,46 +33,24 @@ func init() {
 			Context: func(args ...interface{}) interface{} { return ctx },
 		}
 
-		ns.AddMethodMapping(ctx.AbsURL,
-			[]string{"absURL"},
-			[][2]string{},
-		)
-
-		ns.AddMethodMapping(ctx.AbsLangURL,
-			[]string{"absLangURL"},
-			[][2]string{},
-		)
-		ns.AddMethodMapping(ctx.Ref,
-			[]string{"ref"},
-			[][2]string{},
-		)
-		ns.AddMethodMapping(ctx.RelURL,
-			[]string{"relURL"},
-			[][2]string{},
-		)
-		ns.AddMethodMapping(ctx.RelLangURL,
-			[]string{"relLangURL"},
-			[][2]string{},
-		)
-		ns.AddMethodMapping(ctx.RelRef,
-			[]string{"relref"},
-			[][2]string{},
-		)
-		ns.AddMethodMapping(ctx.URLize,
-			[]string{"urlize"},
-			[][2]string{},
-		)
-
-		ns.AddMethodMapping(ctx.Anchorize,
-			[]string{"anchorize"},
+		ns.AddMethodMapping(ctx.Split,
+			nil,
 			[][2]string{
-				{`{{ "This is a title" | anchorize }}`, `this-is-a-title`},
+				{`{{ "/my/path/filename.txt" | path.Split }}`, `/my/path/|filename.txt`},
+				{fmt.Sprintf(`{{ %q | path.Split }}`, filepath.FromSlash("/my/path/filename.txt")), `/my/path/|filename.txt`},
+			},
+		)
+
+		ns.AddMethodMapping(ctx.Join,
+			nil,
+			[][2]string{
+				{fmt.Sprintf(`{{ slice %q "filename.txt" | path.Join  }}`, "my"+helpers.FilePathSeparator+"path"), `my/path/filename.txt`},
+				{`{{  path.Join "my" "path" "filename.txt" }}`, `my/path/filename.txt`},
 			},
 		)
 
 		return ns
 
 	}
-
 	internal.AddTemplateFuncsNamespace(f)
 }
