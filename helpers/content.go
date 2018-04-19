@@ -26,12 +26,12 @@ import (
 	"unicode/utf8"
 
 	"github.com/chaseadamsio/goorgeous"
-	bp "github.com/xa0082249956/hugo/bufferpool"
-	"github.com/xa0082249956/hugo/config"
 	"github.com/miekg/mmark"
 	"github.com/mitchellh/mapstructure"
 	"github.com/russross/blackfriday"
 	jww "github.com/spf13/jwalterweatherman"
+	bp "github.com/xa0082249956/hugo/bufferpool"
+	"github.com/xa0082249956/hugo/config"
 
 	"strings"
 )
@@ -403,6 +403,51 @@ func ExtractTOC(content []byte) (newcontent []byte, toc []byte) {
 	origContent := make([]byte, len(content))
 	copy(origContent, content)
 	first := []byte(`<nav>
+<ul>`)
+
+	last := []byte(`</ul>
+</nav>`)
+
+	replacement := []byte(`<nav id="TableOfContents">
+<ul>`)
+
+	startOfTOC := bytes.Index(content, first)
+
+	peekEnd := len(content)
+	if peekEnd > 70+startOfTOC {
+		peekEnd = 70 + startOfTOC
+	}
+
+	if startOfTOC < 0 {
+		return stripEmptyNav(content), toc
+	}
+	// Need to peek ahead to see if this nav element is actually the right one.
+	correctNav := bytes.Index(content[startOfTOC:peekEnd], []byte(`<li><a href="#`))
+	if correctNav < 0 { // no match found
+		return content, toc
+	}
+	lengthOfTOC := bytes.Index(content[startOfTOC:], last) + len(last)
+	endOfTOC := startOfTOC + lengthOfTOC
+
+	newcontent = append(content[:startOfTOC], content[endOfTOC:]...)
+	toc = append(replacement, origContent[startOfTOC+len(first):endOfTOC]...)
+	return
+}
+
+func ExtractPandocTOC(content []byte) (newcontent []byte, toc []byte) {
+	origContent := make([]byte, len(content))
+	copy(origContent, content)
+
+	realHead := []byte(`</head>
+<body>
+`)
+	realEnd := []byte(`
+</body>
+</html>`)
+
+	// TODO(xa0082249956) what next
+
+	first := []byte(`<nav id="TOC">
 <ul>`)
 
 	last := []byte(`</ul>
