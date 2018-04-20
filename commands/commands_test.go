@@ -21,6 +21,7 @@ import (
 	"testing"
 
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 
 	"github.com/stretchr/testify/require"
 )
@@ -53,7 +54,26 @@ func TestCommandsPersistentFlags(t *testing.T) {
 	tests := []struct {
 		args  []string
 		check func(command []cmder)
-	}{{[]string{"server", "--config=myconfig.toml", "-b=https://example.com/b/", "--source=mysource"}, func(commands []cmder) {
+	}{{[]string{"server",
+		"--config=myconfig.toml",
+		"--contentDir=mycontent",
+		"--disableKinds=page,home",
+		"--layoutDir=mylayouts",
+		"--theme=mytheme",
+		"--gc",
+		"--themesDir=mythemes",
+		"--cleanDestinationDir",
+		"--navigateToChanged",
+		"--disableLiveReload",
+		"--noHTTPCache",
+		"--i18n-warnings",
+		"--destination=/tmp/mydestination",
+		"-b=https://example.com/b/",
+		"--port=1366",
+		"--renderToDisk",
+		"--source=mysource",
+		"--uglyURLs"}, func(commands []cmder) {
+		var sc *serverCmd
 		for _, command := range commands {
 			if b, ok := command.(commandsBuilderGetter); ok {
 				v := b.getCmmandsBuilder().hugoBuilderCommon
@@ -61,7 +81,36 @@ func TestCommandsPersistentFlags(t *testing.T) {
 				assert.Equal("mysource", v.source)
 				assert.Equal("https://example.com/b/", v.baseURL)
 			}
+
+			if srvCmd, ok := command.(*serverCmd); ok {
+				sc = srvCmd
+			}
 		}
+
+		assert.NotNil(sc)
+		assert.True(sc.navigateToChanged)
+		assert.True(sc.disableLiveReload)
+		assert.True(sc.noHTTPCache)
+		assert.True(sc.renderToDisk)
+		assert.Equal(1366, sc.serverPort)
+
+		cfg := viper.New()
+		sc.flagsToConfig(cfg)
+		assert.Equal("/tmp/mydestination", cfg.GetString("publishDir"))
+		assert.Equal("mycontent", cfg.GetString("contentDir"))
+		assert.Equal("mylayouts", cfg.GetString("layoutDir"))
+		assert.Equal("mytheme", cfg.GetString("theme"))
+		assert.Equal("mythemes", cfg.GetString("themesDir"))
+		assert.Equal("https://example.com/b/", cfg.GetString("baseURL"))
+
+		assert.Equal([]string{"page", "home"}, cfg.Get("disableKinds"))
+
+		assert.True(cfg.GetBool("uglyURLs"))
+		assert.True(cfg.GetBool("gc"))
+
+		// The flag is named i18n-warnings
+		assert.True(cfg.GetBool("logI18nWarnings"))
+
 	}}}
 
 	for _, test := range tests {
@@ -69,6 +118,9 @@ func TestCommandsPersistentFlags(t *testing.T) {
 		root := b.addAll().build()
 
 		for _, c := range b.commands {
+			if c.getCommand() == nil {
+				continue
+			}
 			// We are only intereseted in the flag handling here.
 			c.getCommand().RunE = noOpRunE
 		}

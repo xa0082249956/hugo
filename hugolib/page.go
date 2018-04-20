@@ -128,7 +128,7 @@ type Page struct {
 	params map[string]interface{}
 
 	// Content sections
-	Content         template.HTML
+	content         template.HTML
 	Summary         template.HTML
 	TableOfContents template.HTML
 
@@ -243,6 +243,8 @@ type Page struct {
 	// 3. But you can get it via .Site.GetPage
 	headless bool
 
+	bundleType bundleDirType
+
 	layoutDescriptor output.LayoutDescriptor
 
 	scratch *Scratch
@@ -261,6 +263,10 @@ type Page struct {
 	mainPageOutput *PageOutput
 
 	targetPathDescriptorPrototype *targetPathDescriptor
+}
+
+func (p *Page) Content() (interface{}, error) {
+	return p.content, nil
 }
 
 // Sites is a convenience method to get all the Hugo sites/languages configured.
@@ -462,7 +468,7 @@ func (p *Page) PlainWords() []string {
 
 func (p *Page) initPlain() {
 	p.plainInit.Do(func() {
-		p.plain = helpers.StripHTML(string(p.Content))
+		p.plain = helpers.StripHTML(string(p.content))
 		return
 	})
 }
@@ -849,7 +855,7 @@ func (s *Site) NewPage(name string) (*Page, error) {
 func (p *Page) ReadFrom(buf io.Reader) (int64, error) {
 	// Parse for metadata & body
 	if err := p.parse(buf); err != nil {
-		p.s.Log.ERROR.Print(err)
+		p.s.Log.ERROR.Printf("%s for %s", err, p.File.Path())
 		return 0, err
 	}
 
@@ -1063,6 +1069,16 @@ func (p *Page) prepareForRender(cfg *BuildCfg) error {
 	// or a template or similar has changed so wee need to do a rerendering
 	// of the shortcodes etc.
 
+	// Handle bundled pages first, so the content is available in the
+	// owners' shortcodes.
+	for _, r := range p.Resources.ByType(pageResourceType) {
+		p.s.PathSpec.ProcessingStats.Incr(&p.s.PathSpec.ProcessingStats.Pages)
+		bp := r.(*Page)
+		if err := bp.prepareForRender(cfg); err != nil {
+			s.Log.ERROR.Printf("Failed to prepare bundled page %q for render: %s", bp.BaseFileName(), err)
+		}
+	}
+
 	// If in watch mode or if we have multiple output formats,
 	// we need to keep the original so we can
 	// potentially repeat this process on rebuild.
@@ -1098,7 +1114,7 @@ func (p *Page) prepareForRender(cfg *BuildCfg) error {
 			workContentCopy = summaryContent.content
 		}
 
-		p.Content = helpers.BytesToHTML(workContentCopy)
+		p.content = helpers.BytesToHTML(workContentCopy)
 
 		if summaryContent == nil {
 			if err := p.setAutoSummary(); err != nil {
@@ -1107,20 +1123,11 @@ func (p *Page) prepareForRender(cfg *BuildCfg) error {
 		}
 
 	} else {
-		p.Content = helpers.BytesToHTML(workContentCopy)
+		p.content = helpers.BytesToHTML(workContentCopy)
 	}
 
 	//analyze for raw stats
 	p.analyzePage()
-
-	// Handle bundled pages.
-	for _, r := range p.Resources.ByType(pageResourceType) {
-		p.s.PathSpec.ProcessingStats.Incr(&p.s.PathSpec.ProcessingStats.Pages)
-		bp := r.(*Page)
-		if err := bp.prepareForRender(cfg); err != nil {
-			s.Log.ERROR.Printf("Failed to prepare bundled page %q for render: %s", bp.BaseFileName(), err)
-		}
-	}
 
 	return nil
 }
@@ -1720,7 +1727,7 @@ func (p *Page) prepareLayouts() error {
 	if p.Kind == KindPage {
 		if !p.IsRenderable() {
 			self := "__" + p.UniqueID()
-			err := p.s.TemplateHandler().AddLateTemplate(self, string(p.Content))
+			err := p.s.TemplateHandler().AddLateTemplate(self, string(p.content))
 			if err != nil {
 				return err
 			}
