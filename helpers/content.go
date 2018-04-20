@@ -435,9 +435,6 @@ func ExtractTOC(content []byte) (newcontent []byte, toc []byte) {
 }
 
 func ExtractPandocTOC(content []byte) (newcontent []byte, toc []byte) {
-	origContent := make([]byte, len(content))
-	copy(origContent, content)
-
 	realHead := []byte(`</head>
 <body>
 `)
@@ -445,7 +442,18 @@ func ExtractPandocTOC(content []byte) (newcontent []byte, toc []byte) {
 </body>
 </html>`)
 
-	// TODO(xa0082249956) what next
+	startOfContent := bytes.Index(content, realHead) + len(realHead)
+	endOfContent := bytes.LastIndex(content, realEnd)
+
+	if startOfContent < 0 || endOfContent < 0 {
+		startOfContent = 0
+		endOfContent = len(content)
+	}
+
+	content = content[startOfContent:endOfContent]
+
+	origContent := make([]byte, len(content))
+	copy(origContent, content)
 
 	first := []byte(`<nav id="TOC">
 <ul>`)
