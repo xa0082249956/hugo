@@ -559,81 +559,21 @@ func (h *HugoSites) setupTranslations() {
 	}
 }
 
-type pagesRenderPreparer struct {
-	numWorkers int
-	s          *Site
-	cfg        *BuildCfg
-	wg         *sync.WaitGroup
-	pages      chan *Page
-}
-
-func newStartedRenderPreparator(s *Site, cfg *BuildCfg) *pagesRenderPreparer {
-	numWorkers := getGoMaxProcs() * 4
-	pp := &pagesRenderPreparer{
-		s:          s,
-		cfg:        cfg,
-		numWorkers: numWorkers,
-		wg:         &sync.WaitGroup{},
-		pages:      make(chan *Page),
-	}
-
-	pp.start()
-	return pp
-}
-
-func (pp *pagesRenderPreparer) start() {
-	for i := 0; i < pp.numWorkers; i++ {
-		pp.wg.Add(1)
-		go func() {
-			defer pp.wg.Done()
-			for p := range pp.pages {
-				if err := p.prepareForRender(pp.cfg); err != nil {
-					pp.s.Log.ERROR.Printf("Failed to prepare page %q for render: %s", p.BaseFileName(), err)
-
-				}
-			}
-		}()
-	}
-}
-
-func (pp *pagesRenderPreparer) add(p *Page) {
-	pp.pages <- p
-}
-
-func (pp *pagesRenderPreparer) done() {
-	close(pp.pages)
-	pp.wg.Wait()
-}
-
 func (s *Site) preparePagesForRender(cfg *BuildCfg) {
-
-	// For the content from other pages in shortcodes there are some chicken and
-	// egg dependencies that is hard to get around. But we can improve on this
-	// by preparing the pages in a certain order.
-	// So the headless pages goes first. These are typically collection of
-	// pages and images etc. used by others.
-	batch := newStartedRenderPreparator(s, cfg)
-	for _, p := range s.headlessPages {
-		batch.add(p)
+	for _, p := range s.Pages {
+		p.setContentInit(cfg)
+		// The skip render flag is used in many tests. To make sure that they
+		// have access to the content, we need to manually initialize it here.
+		if cfg.SkipRender {
+			p.initContent()
+		}
 	}
 
-	batch.done()
-
-	// Then the rest in the following order:
-	order := []bundleDirType{bundleLeaf, bundleNot, bundleBranch}
-
-	for _, tp := range order {
-		batch = newStartedRenderPreparator(s, cfg)
-		for _, p := range s.Pages {
-			// sanity check
-			if p.bundleType < 0 || p.bundleType > bundleBranch {
-				panic("unknown bundle type")
-			}
-			if p.bundleType == tp {
-				batch.add(p)
-			}
+	for _, p := range s.headlessPages {
+		p.setContentInit(cfg)
+		if cfg.SkipRender {
+			p.initContent()
 		}
-		batch.done()
 	}
 
 }
@@ -643,7 +583,7 @@ func (h *HugoSites) Pages() Pages {
 	return h.Sites[0].AllPages
 }
 
-func handleShortcodes(p *Page, rawContentCopy []byte) ([]byte, error) {
+func handleShortcodes(p *PageWithoutContent, rawContentCopy []byte) ([]byte, error) {
 	if p.shortcodeState != nil && len(p.shortcodeState.contentShortcodes) > 0 {
 		p.s.Log.DEBUG.Printf("Replace %d shortcodes in %q", len(p.shortcodeState.contentShortcodes), p.BaseFileName())
 		err := p.shortcodeState.executeShortcodesForDelta(p)

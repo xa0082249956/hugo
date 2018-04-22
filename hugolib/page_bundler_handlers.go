@@ -218,8 +218,6 @@ func (c *contentHandlers) parsePage(h contentHandler) contentHandler {
 		ctx.currentPage = p
 
 		if ctx.bundle != nil {
-			p.bundleType = ctx.bundle.tp
-
 			// Add the bundled files
 			for _, fi := range ctx.bundle.resources {
 				childCtx := ctx.childCtx(fi)
@@ -287,6 +285,10 @@ func (c *contentHandlers) handlePageContent() contentHandler {
 
 		p.workContent = p.replaceDivider(p.workContent)
 		p.workContent = p.renderContent(p.workContent)
+
+		tmpContent, tmpTableOfContents := helpers.ExtractTOC(p.workContent)
+		p.TableOfContents = helpers.BytesToHTML(tmpTableOfContents)
+		p.workContent = tmpContent
 
 		if !ctx.doNotAddToSiteCollections {
 			ctx.pages <- p
