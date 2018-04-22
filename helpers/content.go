@@ -434,6 +434,7 @@ func ExtractTOC(content []byte) (newcontent []byte, toc []byte) {
 	return
 }
 
+// ExtractPandocTOC extracts Table of Contents from pandoc content.
 func ExtractPandocTOC(content []byte) (newcontent []byte, toc []byte) {
 	realHead := []byte(`</head>
 <body>
