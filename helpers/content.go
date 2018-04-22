@@ -26,12 +26,12 @@ import (
 	"unicode/utf8"
 
 	"github.com/chaseadamsio/goorgeous"
-	bp "github.com/xa0082249956/hugo/bufferpool"
-	"github.com/xa0082249956/hugo/config"
 	"github.com/miekg/mmark"
 	"github.com/mitchellh/mapstructure"
 	"github.com/russross/blackfriday"
 	jww "github.com/spf13/jwalterweatherman"
+	bp "github.com/xa0082249956/hugo/bufferpool"
+	"github.com/xa0082249956/hugo/config"
 
 	"strings"
 )

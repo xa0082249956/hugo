@@ -18,8 +18,8 @@ import (
 	_path "path"
 	"path/filepath"
 
-	"github.com/gohugoio/hugo/deps"
 	"github.com/spf13/cast"
+	"github.com/xa0082249956/hugo/deps"
 )
 
 // New returns a new instance of the path-namespaced template functions.
