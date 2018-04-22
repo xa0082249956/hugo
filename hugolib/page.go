@@ -1098,6 +1098,12 @@ func (p *Page) prepareForRender(cfg *BuildCfg) error {
 		workContentCopy = tmpContent
 	}
 
+	if p.Markup == "pandoc" {
+		tmpContent, tmpTableOfContents := helpers.ExtractPandocTOC(workContentCopy)
+		p.TableOfContents = helpers.BytesToHTML(tmpTableOfContents)
+		workContentCopy = tmpContent
+	}
+
 	var err error
 	if workContentCopy, err = handleShortcodes(p, workContentCopy); err != nil {
 		s.Log.ERROR.Printf("Failed to handle shortcodes for page %s: %s", p.BaseFileName(), err)
