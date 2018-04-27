@@ -180,6 +180,7 @@ func (s *Site) reset() *Site {
 		titleFunc:           s.titleFunc,
 		relatedDocsHandler:  newSearchIndexHandler(s.relatedDocsHandler.cfg),
 		outputFormats:       s.outputFormats,
+		rc:                  s.rc,
 		outputFormatsConfig: s.outputFormatsConfig,
 		frontmatterHandler:  s.frontmatterHandler,
 		mediaTypesConfig:    s.mediaTypesConfig,
@@ -266,6 +267,7 @@ func newSite(cfg deps.DepsCfg) (*Site, error) {
 		titleFunc:           titleFunc,
 		relatedDocsHandler:  newSearchIndexHandler(relatedContentConfig),
 		outputFormats:       outputFormats,
+		rc:                  &siteRenderingContext{output.HTMLFormat},
 		outputFormatsConfig: siteOutputFormatsConfig,
 		mediaTypesConfig:    siteMediaTypesConfig,
 		frontmatterHandler:  frontMatterHandler,
@@ -546,7 +548,7 @@ func (s *SiteInfo) RelRef(ref string, page *Page, options ...string) (string, er
 }
 
 func (s *Site) running() bool {
-	return s.owner.running
+	return s.owner != nil && s.owner.running
 }
 
 func init() {
@@ -1583,7 +1585,6 @@ func (s *Site) resetBuildState() {
 	s.expiredCount = 0
 
 	for _, p := range s.rawAllPages {
-		p.scratch = newScratch()
 		p.subSections = Pages{}
 		p.parent = nil
 	}
@@ -1866,14 +1867,15 @@ func getGoMaxProcs() int {
 
 func (s *Site) newNodePage(typ string, sections ...string) *Page {
 	p := &Page{
-		language: s.Language,
-		pageInit: &pageInit{},
-		Kind:     typ,
-		Source:   Source{File: &source.FileInfo{}},
-		Data:     make(map[string]interface{}),
-		Site:     &s.Info,
-		sections: sections,
-		s:        s}
+		language:        s.Language,
+		pageInit:        &pageInit{},
+		pageContentInit: &pageContentInit{},
+		Kind:            typ,
+		Source:          Source{File: &source.FileInfo{}},
+		Data:            make(map[string]interface{}),
+		Site:            &s.Info,
+		sections:        sections,
+		s:               s}
 
 	p.outputFormats = p.s.outputFormats[p.Kind]
 

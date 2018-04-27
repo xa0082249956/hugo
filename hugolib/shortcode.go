@@ -37,10 +37,14 @@ import (
 type ShortcodeWithPage struct {
 	Params        interface{}
 	Inner         template.HTML
-	Page          *Page
+	Page          *PageWithoutContent
 	Parent        *ShortcodeWithPage
 	IsNamedParams bool
-	scratch       *Scratch
+
+	// Zero-based oridinal in relation to its parent.
+	Ordinal int
+
+	scratch *Scratch
 }
 
 // Site returns information about the current site.
@@ -86,8 +90,7 @@ func (scp *ShortcodeWithPage) Get(key interface{}) interface{} {
 			idx := int(reflect.ValueOf(key).Int())
 			ln := reflect.ValueOf(scp.Params).Len()
 			if idx > ln-1 {
-				helpers.DistinctErrorLog.Printf("No shortcode param at .Get %d in page %s, have params: %v", idx, scp.Page.FullFilePath(), scp.Params)
-				return fmt.Sprintf("error: index out of range for positional param at position %d", idx)
+				return ""
 			}
 			x = reflect.ValueOf(scp.Params).Index(idx)
 		}
@@ -123,6 +126,7 @@ type shortcode struct {
 	name     string
 	inner    []interface{} // string or nested shortcode
 	params   interface{}   // map or array
+	ordinal  int
 	err      error
 	doMarkup bool
 }
@@ -178,14 +182,14 @@ func newDefaultScKey(shortcodeplaceholder string) scKey {
 type shortcodeHandler struct {
 	init sync.Once
 
-	p *Page
+	p *PageWithoutContent
 
 	// This is all shortcode rendering funcs for all potential output formats.
-	contentShortcodes map[scKey]func() (string, error)
+	contentShortcodes *orderedMap
 
 	// This map contains the new or changed set of shortcodes that need
 	// to be rendered for the current output format.
-	contentShortcodesDelta map[scKey]func() (string, error)
+	contentShortcodesDelta *orderedMap
 
 	// This maps the shorcode placeholders with the rendered content.
 	// We will do (potential) partial re-rendering per output format,
@@ -193,17 +197,32 @@ type shortcodeHandler struct {
 	renderedShortcodes map[string]string
 
 	// Maps the shortcodeplaceholder with the actual shortcode.
-	shortcodes map[string]shortcode
+	shortcodes *orderedMap
 
 	// All the shortcode names in this set.
 	nameSet map[string]bool
+
+	placeholderID   int
+	placeholderFunc func() string
+}
+
+func (s *shortcodeHandler) nextPlaceholderID() int {
+	s.placeholderID++
+	return s.placeholderID
+}
+
+func (s *shortcodeHandler) createShortcodePlaceholder() string {
+	if s.placeholderFunc != nil {
+		return s.placeholderFunc()
+	}
+	return fmt.Sprintf("HAHA%s-%p-%d-HBHB", shortcodePlaceholderPrefix, s.p.Page, s.nextPlaceholderID())
 }
 
 func newShortcodeHandler(p *Page) *shortcodeHandler {
 	return &shortcodeHandler{
-		p:                  p,
-		contentShortcodes:  make(map[scKey]func() (string, error)),
-		shortcodes:         make(map[string]shortcode),
+		p:                  p.withoutContent(),
+		contentShortcodes:  newOrderedMap(),
+		shortcodes:         newOrderedMap(),
 		nameSet:            make(map[string]bool),
 		renderedShortcodes: make(map[string]string),
 	}
@@ -241,15 +260,11 @@ func clearIsInnerShortcodeCache() {
 	isInnerShortcodeCache.m = make(map[string]bool)
 }
 
-func createShortcodePlaceholder(id int) string {
-	return fmt.Sprintf("HAHA%s-%dHBHB", shortcodePlaceholderPrefix, id)
-}
-
 const innerNewlineRegexp = "\n"
 const innerCleanupRegexp = `\A<p>(.*)</p>\n\z`
 const innerCleanupExpand = "$1"
 
-func prepareShortcodeForPage(placeholder string, sc shortcode, parent *ShortcodeWithPage, p *Page) map[scKey]func() (string, error) {
+func prepareShortcodeForPage(placeholder string, sc *shortcode, parent *ShortcodeWithPage, p *PageWithoutContent) map[scKey]func() (string, error) {
 
 	m := make(map[scKey]func() (string, error))
 	lang := p.Lang()
@@ -267,9 +282,9 @@ func prepareShortcodeForPage(placeholder string, sc shortcode, parent *Shortcode
 
 func renderShortcode(
 	tmplKey scKey,
-	sc shortcode,
+	sc *shortcode,
 	parent *ShortcodeWithPage,
-	p *Page) string {
+	p *PageWithoutContent) string {
 
 	tmpl := getShortcodeTemplateForTemplateKey(tmplKey, sc.name, p.s.Tmpl)
 	if tmpl == nil {
@@ -277,7 +292,7 @@ func renderShortcode(
 		return ""
 	}
 
-	data := &ShortcodeWithPage{Params: sc.params, Page: p, Parent: parent}
+	data := &ShortcodeWithPage{Ordinal: sc.ordinal, Params: sc.params, Page: p, Parent: parent}
 	if sc.params != nil {
 		data.IsNamedParams = reflect.TypeOf(sc.params).Kind() == reflect.Map
 	}
@@ -288,8 +303,8 @@ func renderShortcode(
 			switch innerData.(type) {
 			case string:
 				inner += innerData.(string)
-			case shortcode:
-				inner += renderShortcode(tmplKey, innerData.(shortcode), data, p)
+			case *shortcode:
+				inner += renderShortcode(tmplKey, innerData.(*shortcode), data, p)
 			default:
 				p.s.Log.ERROR.Printf("Illegal state on shortcode rendering of %q in page %q. Illegal type in inner data: %s ",
 					sc.name, p.Path(), reflect.TypeOf(innerData))
@@ -348,81 +363,97 @@ func renderShortcode(
 // the content from the previous output format, if any.
 func (s *shortcodeHandler) updateDelta() bool {
 	s.init.Do(func() {
-		s.contentShortcodes = createShortcodeRenderers(s.shortcodes, s.p)
+		s.contentShortcodes = createShortcodeRenderers(s.shortcodes, s.p.withoutContent())
 	})
 
-	contentShortcodes := s.contentShortcodesForOutputFormat(s.p.s.rc.Format)
+	if !s.p.shouldRenderTo(s.p.s.rc.Format) {
+		// TODO(bep) add test for this re translations
+		return false
+	}
+	of := s.p.s.rc.Format
+	contentShortcodes := s.contentShortcodesForOutputFormat(of)
 
-	if s.contentShortcodesDelta == nil || len(s.contentShortcodesDelta) == 0 {
+	if s.contentShortcodesDelta == nil || s.contentShortcodesDelta.Len() == 0 {
 		s.contentShortcodesDelta = contentShortcodes
 		return true
 	}
 
-	delta := make(map[scKey]func() (string, error))
+	delta := newOrderedMap()
 
-	for k, v := range contentShortcodes {
-		if _, found := s.contentShortcodesDelta[k]; !found {
-			delta[k] = v
+	for _, k := range contentShortcodes.Keys() {
+		if !s.contentShortcodesDelta.Contains(k) {
+			v, _ := contentShortcodes.Get(k)
+			delta.Add(k, v)
 		}
 	}
 
 	s.contentShortcodesDelta = delta
 
-	return len(delta) > 0
+	return delta.Len() > 0
 }
 
-func (s *shortcodeHandler) contentShortcodesForOutputFormat(f output.Format) map[scKey]func() (string, error) {
-	contentShortcodesForOuputFormat := make(map[scKey]func() (string, error))
+func (s *shortcodeHandler) clearDelta() {
+	if s == nil {
+		return
+	}
+	s.contentShortcodesDelta = newOrderedMap()
+}
+
+func (s *shortcodeHandler) contentShortcodesForOutputFormat(f output.Format) *orderedMap {
+	contentShortcodesForOuputFormat := newOrderedMap()
 	lang := s.p.Lang()
 
-	for shortcodePlaceholder := range s.shortcodes {
+	for _, key := range s.shortcodes.Keys() {
+		shortcodePlaceholder := key.(string)
 
 		key := newScKeyFromLangAndOutputFormat(lang, f, shortcodePlaceholder)
-		renderFn, found := s.contentShortcodes[key]
+		renderFn, found := s.contentShortcodes.Get(key)
 
 		if !found {
 			key.OutputFormat = ""
-			renderFn, found = s.contentShortcodes[key]
+			renderFn, found = s.contentShortcodes.Get(key)
 		}
 
 		// Fall back to HTML
 		if !found && key.Suffix != "html" {
 			key.Suffix = "html"
-			renderFn, found = s.contentShortcodes[key]
+			renderFn, found = s.contentShortcodes.Get(key)
 		}
 
 		if !found {
 			panic(fmt.Sprintf("Shortcode %q could not be found", shortcodePlaceholder))
 		}
-		contentShortcodesForOuputFormat[newScKeyFromLangAndOutputFormat(lang, f, shortcodePlaceholder)] = renderFn
+		contentShortcodesForOuputFormat.Add(newScKeyFromLangAndOutputFormat(lang, f, shortcodePlaceholder), renderFn)
 	}
 
 	return contentShortcodesForOuputFormat
 }
 
-func (s *shortcodeHandler) executeShortcodesForDelta(p *Page) error {
+func (s *shortcodeHandler) executeShortcodesForDelta(p *PageWithoutContent) error {
 
-	for k, render := range s.contentShortcodesDelta {
+	for _, k := range s.contentShortcodesDelta.Keys() {
+		render := s.contentShortcodesDelta.getShortcodeRenderer(k)
 		renderedShortcode, err := render()
 		if err != nil {
 			return fmt.Errorf("Failed to execute shortcode in page %q: %s", p.Path(), err)
 		}
 
-		s.renderedShortcodes[k.ShortcodePlaceholder] = renderedShortcode
+		s.renderedShortcodes[k.(scKey).ShortcodePlaceholder] = renderedShortcode
 	}
 
 	return nil
 
 }
 
-func createShortcodeRenderers(shortcodes map[string]shortcode, p *Page) map[scKey]func() (string, error) {
+func createShortcodeRenderers(shortcodes *orderedMap, p *PageWithoutContent) *orderedMap {
 
-	shortcodeRenderers := make(map[scKey]func() (string, error))
+	shortcodeRenderers := newOrderedMap()
 
-	for k, v := range shortcodes {
-		prepared := prepareShortcodeForPage(k, v, nil, p)
+	for _, k := range shortcodes.Keys() {
+		v := shortcodes.getShortcode(k)
+		prepared := prepareShortcodeForPage(k.(string), v, nil, p)
 		for kk, vv := range prepared {
-			shortcodeRenderers[kk] = vv
+			shortcodeRenderers.Add(kk, vv)
 		}
 	}
 
@@ -434,12 +465,13 @@ var errShortCodeIllegalState = errors.New("Illegal shortcode state")
 // pageTokens state:
 // - before: positioned just before the shortcode start
 // - after: shortcode(s) consumed (plural when they are nested)
-func (s *shortcodeHandler) extractShortcode(pt *pageTokens, p *Page) (shortcode, error) {
-	sc := shortcode{}
+func (s *shortcodeHandler) extractShortcode(ordinal int, pt *pageTokens, p *PageWithoutContent) (*shortcode, error) {
+	sc := &shortcode{ordinal: ordinal}
 	var isInner = false
 
 	var currItem item
 	var cnt = 0
+	var nestedOrdinal = 0
 
 Loop:
 	for {
@@ -455,7 +487,8 @@ Loop:
 			if cnt > 0 {
 				// nested shortcode; append it to inner content
 				pt.backup3(currItem, next)
-				nested, err := s.extractShortcode(pt, p)
+				nested, err := s.extractShortcode(nestedOrdinal, pt, p)
+				nestedOrdinal++
 				if nested.name != "" {
 					s.nameSet[nested.name] = true
 				}
@@ -556,7 +589,7 @@ Loop:
 	return sc, nil
 }
 
-func (s *shortcodeHandler) extractShortcodes(stringToParse string, p *Page) (string, error) {
+func (s *shortcodeHandler) extractShortcodes(stringToParse string, p *PageWithoutContent) (string, error) {
 
 	startIdx := strings.Index(stringToParse, "{{")
 
@@ -570,8 +603,6 @@ func (s *shortcodeHandler) extractShortcodes(stringToParse string, p *Page) (str
 	// it seems that the time isn't really spent in the byte copy operations, and the impl. gets a lot cleaner
 	pt := &pageTokens{lexer: newShortcodeLexer("parse-page", stringToParse, pos(startIdx))}
 
-	id := 1 // incremented id, will be appended onto temp. shortcode placeholders
-
 	result := bp.GetBuffer()
 	defer bp.PutBuffer(result)
 	//var result bytes.Buffer
@@ -580,6 +611,7 @@ func (s *shortcodeHandler) extractShortcodes(stringToParse string, p *Page) (str
 	// … it's safe to keep some "global" state
 	var currItem item
 	var currShortcode shortcode
+	var ordinal int
 
 Loop:
 	for {
@@ -592,7 +624,7 @@ Loop:
 			// let extractShortcode handle left delim (will do so recursively)
 			pt.backup()
 
-			currShortcode, err := s.extractShortcode(pt, p)
+			currShortcode, err := s.extractShortcode(ordinal, pt, p)
 
 			if currShortcode.name != "" {
 				s.nameSet[currShortcode.name] = true
@@ -606,10 +638,10 @@ Loop:
 				currShortcode.params = make([]string, 0)
 			}
 
-			placeHolder := createShortcodePlaceholder(id)
+			placeHolder := s.createShortcodePlaceholder()
 			result.WriteString(placeHolder)
-			s.shortcodes[placeHolder] = currShortcode
-			id++
+			ordinal++
+			s.shortcodes.Add(placeHolder, currShortcode)
 		case tEOF:
 			break Loop
 		case tError:

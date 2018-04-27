@@ -1,4 +1,4 @@
-// Copyright 2017 The Hugo Authors. All rights reserved.
+// Copyright 2018 The Hugo Authors. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -40,7 +40,10 @@ import (
 type commandeer struct {
 	*deps.DepsCfg
 
-	subCmdVs []*cobra.Command
+	hugo *hugolib.HugoSites
+
+	h    *hugoBuilderCommon
+	ftch flagsToConfigHandler
 
 	pathSpec    *helpers.PathSpec
 	visitedURLs *types.EvictingStringQueue
@@ -96,7 +99,7 @@ func (c *commandeer) initFs(fs *hugofs.Fs) error {
 	return nil
 }
 
-func newCommandeer(running bool, doWithCommandeer func(c *commandeer) error, subCmdVs ...*cobra.Command) (*commandeer, error) {
+func newCommandeer(running bool, h *hugoBuilderCommon, f flagsToConfigHandler, doWithCommandeer func(c *commandeer) error, subCmdVs ...*cobra.Command) (*commandeer, error) {
 
 	var rebuildDebouncer func(f func())
 	if running {
@@ -107,8 +110,9 @@ func newCommandeer(running bool, doWithCommandeer func(c *commandeer) error, sub
 	}
 
 	c := &commandeer{
+		h:                h,
+		ftch:             f,
 		doWithCommandeer: doWithCommandeer,
-		subCmdVs:         append([]*cobra.Command{hugoCmdV}, subCmdVs...),
 		visitedURLs:      types.NewEvictingStringQueue(10),
 		debounce:         rebuildDebouncer,
 	}
@@ -127,8 +131,8 @@ func (c *commandeer) loadConfig(running bool) error {
 	cfg.Running = running
 
 	var dir string
-	if source != "" {
-		dir, _ = filepath.Abs(source)
+	if c.h.source != "" {
+		dir, _ = filepath.Abs(c.h.source)
 	} else {
 		dir, _ = os.Getwd()
 	}
@@ -139,45 +143,12 @@ func (c *commandeer) loadConfig(running bool) error {
 	}
 
 	doWithConfig := func(cfg config.Provider) error {
-		for _, cmdV := range c.subCmdVs {
-			initializeFlags(cmdV, cfg)
-		}
 
-		if baseURL != "" {
-			cfg.Set("baseURL", baseURL)
-		}
-
-		if len(disableKinds) > 0 {
-			cfg.Set("disableKinds", disableKinds)
-		}
-
-		cfg.Set("logI18nWarnings", logI18nWarnings)
-
-		if theme != "" {
-			cfg.Set("theme", theme)
-		}
-
-		if themesDir != "" {
-			cfg.Set("themesDir", themesDir)
-		}
-
-		if destination != "" {
-			cfg.Set("publishDir", destination)
+		if c.ftch != nil {
+			c.ftch.flagsToConfig(cfg)
 		}
 
 		cfg.Set("workingDir", dir)
-
-		if contentDir != "" {
-			cfg.Set("contentDir", contentDir)
-		}
-
-		if layoutDir != "" {
-			cfg.Set("layoutDir", layoutDir)
-		}
-
-		if cacheDir != "" {
-			cfg.Set("cacheDir", cacheDir)
-		}
 
 		return nil
 	}
@@ -192,7 +163,7 @@ func (c *commandeer) loadConfig(running bool) error {
 	}
 
 	config, configFiles, err := hugolib.LoadConfig(
-		hugolib.ConfigSourceDescriptor{Fs: sourceFs, Path: source, WorkingDir: dir, Filename: cfgFile},
+		hugolib.ConfigSourceDescriptor{Fs: sourceFs, Path: c.h.source, WorkingDir: dir, Filename: c.h.cfgFile},
 		doWithCommandeer,
 		doWithConfig)
 
@@ -215,7 +186,7 @@ func (c *commandeer) loadConfig(running bool) error {
 		}
 	}
 
-	logger, err := createLogger(config)
+	logger, err := c.createLogger(config)
 	if err != nil {
 		return err
 	}
@@ -244,7 +215,7 @@ func (c *commandeer) loadConfig(running bool) error {
 		return err
 	}
 
-	cacheDir = config.GetString("cacheDir")
+	cacheDir := config.GetString("cacheDir")
 	if cacheDir != "" {
 		if helpers.FilePathSeparator != cacheDir[len(cacheDir)-1:] {
 			cacheDir = cacheDir + helpers.FilePathSeparator

@@ -559,38 +559,14 @@ func (h *HugoSites) setupTranslations() {
 	}
 }
 
-func (s *Site) preparePagesForRender(cfg *BuildCfg) {
-
-	pageChan := make(chan *Page)
-	wg := &sync.WaitGroup{}
-
-	numWorkers := getGoMaxProcs() * 4
-
-	for i := 0; i < numWorkers; i++ {
-		wg.Add(1)
-		go func(pages <-chan *Page, wg *sync.WaitGroup) {
-			defer wg.Done()
-			for p := range pages {
-				if err := p.prepareForRender(cfg); err != nil {
-					s.Log.ERROR.Printf("Failed to prepare page %q for render: %s", p.BaseFileName(), err)
-
-				}
-			}
-		}(pageChan, wg)
-	}
-
+func (s *Site) preparePagesForRender(start bool) {
 	for _, p := range s.Pages {
-		pageChan <- p
+		p.setContentInit(start)
 	}
 
 	for _, p := range s.headlessPages {
-		pageChan <- p
+		p.setContentInit(start)
 	}
-
-	close(pageChan)
-
-	wg.Wait()
-
 }
 
 // Pages returns all pages for all sites.
@@ -598,9 +574,9 @@ func (h *HugoSites) Pages() Pages {
 	return h.Sites[0].AllPages
 }
 
-func handleShortcodes(p *Page, rawContentCopy []byte) ([]byte, error) {
-	if p.shortcodeState != nil && len(p.shortcodeState.contentShortcodes) > 0 {
-		p.s.Log.DEBUG.Printf("Replace %d shortcodes in %q", len(p.shortcodeState.contentShortcodes), p.BaseFileName())
+func handleShortcodes(p *PageWithoutContent, rawContentCopy []byte) ([]byte, error) {
+	if p.shortcodeState != nil && p.shortcodeState.contentShortcodes.Len() > 0 {
+		p.s.Log.DEBUG.Printf("Replace %d shortcodes in %q", p.shortcodeState.contentShortcodes.Len(), p.BaseFileName())
 		err := p.shortcodeState.executeShortcodesForDelta(p)
 
 		if err != nil {
@@ -712,12 +688,7 @@ func (m *contentChangeMap) resolveAndRemove(filename string) (string, string, bu
 	fileTp, isContent := classifyBundledFile(name)
 
 	// This may be a member of a bundle. Start with branch bundles, the most specific.
-	if fileTp != bundleLeaf {
-		if fileTp == bundleNot && isContent {
-			// Branch bundles does not contain content pages as resources.
-			return dir, filename, bundleNot
-		}
-
+	if fileTp == bundleBranch || (fileTp == bundleNot && !isContent) {
 		for i, b := range m.branches {
 			if b == dir {
 				m.branches = append(m.branches[:i], m.branches[i+1:]...)

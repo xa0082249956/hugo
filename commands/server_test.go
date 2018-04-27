@@ -14,10 +14,59 @@
 package commands
 
 import (
+	"fmt"
+	"net/http"
+	"os"
 	"testing"
+	"time"
+
+	"github.com/gohugoio/hugo/helpers"
 
 	"github.com/spf13/viper"
+	"github.com/stretchr/testify/require"
 )
+
+func TestServer(t *testing.T) {
+	assert := require.New(t)
+	dir, err := createSimpleTestSite(t)
+	assert.NoError(err)
+
+	// Let us hope that this port is available on all systems ...
+	port := 1331
+
+	defer func() {
+		os.RemoveAll(dir)
+	}()
+
+	stop := make(chan bool)
+
+	b := newCommandsBuilder()
+	scmd := b.newServerCmdSignaled(stop)
+
+	cmd := scmd.getCommand()
+	cmd.SetArgs([]string{"-s=" + dir, fmt.Sprintf("-p=%d", port)})
+
+	go func() {
+		_, err = cmd.ExecuteC()
+		assert.NoError(err)
+	}()
+
+	// There is no way to know exactly when the server is ready for connections.
+	// We could improve by something like https://golang.org/pkg/net/http/httptest/#Server
+	// But for now, let us sleep and pray!
+	time.Sleep(2 * time.Second)
+
+	resp, err := http.Get("http://localhost:1331/")
+	assert.NoError(err)
+	defer resp.Body.Close()
+	homeContent := helpers.ReaderToString(resp.Body)
+
+	assert.Contains(homeContent, "List: Hugo Commands")
+
+	// Stop the server.
+	stop <- true
+
+}
 
 func TestFixURL(t *testing.T) {
 	type data struct {
@@ -42,12 +91,14 @@ func TestFixURL(t *testing.T) {
 	}
 
 	for i, test := range tests {
+		b := newCommandsBuilder()
+		s := b.newServerCmd()
 		v := viper.New()
-		baseURL = test.CLIBaseURL
+		baseURL := test.CLIBaseURL
 		v.Set("baseURL", test.CfgBaseURL)
-		serverAppend = test.AppendPort
-		serverPort = test.Port
-		result, err := fixURL(v, baseURL, serverPort)
+		s.serverAppend = test.AppendPort
+		s.serverPort = test.Port
+		result, err := s.fixURL(v, baseURL, s.serverPort)
 		if err != nil {
 			t.Errorf("Test #%d %s: unexpected error %s", i, test.TestName, err)
 		}

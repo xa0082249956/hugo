@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	packageName  = "github.com/gohugoio/hugo"
+	packageName  = "github.com/xa0082249956/hugo"
 	noGitLdflags = "-X $PACKAGE/hugolib.BuildDate=$BUILD_DATE"
 )
 
@@ -161,7 +161,7 @@ func Fmt() error {
 	return nil
 }
 
-var pkgPrefixLen = len("github.com/gohugoio/hugo")
+var pkgPrefixLen = len("github.com/xa0082249956/hugo")
 
 func hugoPackages() ([]string, error) {
 	mg.Deps(getDep)

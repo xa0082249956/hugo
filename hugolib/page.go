@@ -15,6 +15,7 @@ package hugolib
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"reflect"
@@ -37,6 +38,7 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -89,6 +91,7 @@ const (
 
 type Page struct {
 	*pageInit
+	*pageContentInit
 
 	// Kind is the discriminator that identifies the different page types
 	// in the different page collections. This can, as an example, be used
@@ -128,16 +131,18 @@ type Page struct {
 	params map[string]interface{}
 
 	// Content sections
-	Content         template.HTML
-	Summary         template.HTML
+	contentv        template.HTML
+	summary         template.HTML
 	TableOfContents template.HTML
+	// Passed to the shortcodes
+	pageWithoutContent *PageWithoutContent
 
 	Aliases []string
 
 	Images []Image
 	Videos []Video
 
-	Truncated bool
+	truncated bool
 	Draft     bool
 	Status    string
 
@@ -263,6 +268,81 @@ type Page struct {
 	targetPathDescriptorPrototype *targetPathDescriptor
 }
 
+func stackTrace() string {
+	trace := make([]byte, 2000)
+	runtime.Stack(trace, true)
+	return string(trace)
+}
+
+func (p *Page) initContent() {
+
+	p.contentInit.Do(func() {
+		// This careful dance is here to protect against circular loops in shortcode/content
+		// constructs.
+		// TODO(bep) context vs the remote shortcodes
+		ctx, cancel := context.WithTimeout(context.Background(), p.s.Timeout)
+		defer cancel()
+		c := make(chan error, 1)
+
+		go func() {
+			var err error
+			p.contentInitMu.Lock()
+			defer p.contentInitMu.Unlock()
+
+			err = p.prepareForRender()
+			if err != nil {
+				p.s.Log.ERROR.Printf("Failed to prepare page %q for render: %s", p.Path(), err)
+				return
+			}
+
+			if len(p.summary) == 0 {
+				if err = p.setAutoSummary(); err != nil {
+					err = fmt.Errorf("Failed to set user auto summary for page %q: %s", p.pathOrTitle(), err)
+				}
+			}
+			c <- err
+		}()
+
+		select {
+		case <-ctx.Done():
+			p.s.Log.WARN.Printf(`WARNING: Timed out creating content for page %q (.Content will be empty). This is most likely a circular shortcode content loop that should be fixed. If this is just a shortcode calling a slow remote service, try to set "timeout=20000" (or higher, value is in milliseconds) in config.toml.\n`, p.pathOrTitle())
+		case err := <-c:
+			if err != nil {
+				p.s.Log.ERROR.Println(err)
+			}
+		}
+	})
+
+}
+
+// This is sent to the shortcodes for this page. Not doing that will create an infinite regress. So,
+// shortcodes can access .Page.TableOfContents, but not .Page.Content etc.
+func (p *Page) withoutContent() *PageWithoutContent {
+	p.pageInit.withoutContentInit.Do(func() {
+		p.pageWithoutContent = &PageWithoutContent{Page: p}
+	})
+	return p.pageWithoutContent
+}
+
+func (p *Page) Content() (interface{}, error) {
+	return p.content(), nil
+}
+
+func (p *Page) Truncated() bool {
+	p.initContent()
+	return p.truncated
+}
+
+func (p *Page) content() template.HTML {
+	p.initContent()
+	return p.contentv
+}
+
+func (p *Page) Summary() template.HTML {
+	p.initContent()
+	return p.summary
+}
+
 // Sites is a convenience method to get all the Hugo sites/languages configured.
 func (p *Page) Sites() SiteInfos {
 	infos := make(SiteInfos, len(p.s.owner.Sites))
@@ -337,9 +417,19 @@ type pageInit struct {
 	pageMenusInit       sync.Once
 	pageMetaInit        sync.Once
 	pageOutputInit      sync.Once
-	plainInit           sync.Once
-	plainWordsInit      sync.Once
 	renderingConfigInit sync.Once
+	withoutContentInit  sync.Once
+}
+
+type pageContentInit struct {
+	contentInitMu  sync.Mutex
+	contentInit    sync.Once
+	plainInit      sync.Once
+	plainWordsInit sync.Once
+}
+
+func (p *Page) resetContent() {
+	p.pageContentInit = &pageContentInit{}
 }
 
 // IsNode returns whether this is an item of one of the list types in Hugo,
@@ -361,6 +451,26 @@ func (p *Page) IsSection() bool {
 // IsPage returns whether this is a regular content page.
 func (p *Page) IsPage() bool {
 	return p.Kind == KindPage
+}
+
+// BundleType returns the bundle type: "leaf", "branch" or an empty string if it is none.
+// See https://gohugo.io/content-management/page-bundles/
+func (p *Page) BundleType() string {
+	if p.IsNode() {
+		return "branch"
+	}
+
+	var source interface{} = p.Source.File
+	if fi, ok := source.(*fileInfo); ok {
+		switch fi.bundleTp {
+		case bundleBranch:
+			return "branch"
+		case bundleLeaf:
+			return "leaf"
+		}
+	}
+
+	return ""
 }
 
 type Source struct {
@@ -451,26 +561,34 @@ func (p *Page) createWorkContentCopy() {
 }
 
 func (p *Page) Plain() string {
-	p.initPlain()
+	p.initContent()
+	p.initPlain(true)
 	return p.plain
 }
 
-func (p *Page) PlainWords() []string {
-	p.initPlainWords()
-	return p.plainWords
-}
-
-func (p *Page) initPlain() {
+func (p *Page) initPlain(lock bool) {
 	p.plainInit.Do(func() {
-		p.plain = helpers.StripHTML(string(p.Content))
-		return
+		if lock {
+			p.contentInitMu.Lock()
+			defer p.contentInitMu.Unlock()
+		}
+		p.plain = helpers.StripHTML(string(p.contentv))
 	})
 }
 
-func (p *Page) initPlainWords() {
+func (p *Page) PlainWords() []string {
+	p.initContent()
+	p.initPlainWords(true)
+	return p.plainWords
+}
+
+func (p *Page) initPlainWords(lock bool) {
 	p.plainWordsInit.Do(func() {
-		p.plainWords = strings.Fields(p.Plain())
-		return
+		if lock {
+			p.contentInitMu.Lock()
+			defer p.contentInitMu.Unlock()
+		}
+		p.plainWords = strings.Fields(p.plain)
 	})
 }
 
@@ -618,7 +736,7 @@ func (p *Page) replaceDivider(content []byte) []byte {
 
 	replaced, truncated := replaceDivider(content, summaryDivider, internalSummaryDivider)
 
-	p.Truncated = truncated
+	p.truncated = truncated
 
 	return replaced
 }
@@ -637,7 +755,7 @@ func (p *Page) setUserDefinedSummaryIfProvided(rawContentCopy []byte) (*summaryC
 		return nil, nil
 	}
 
-	p.Summary = helpers.BytesToHTML(sc.summary)
+	p.summary = helpers.BytesToHTML(sc.summary)
 
 	return sc, nil
 }
@@ -727,15 +845,21 @@ func splitUserDefinedSummaryAndContent(markup string, c []byte) (sc *summaryCont
 func (p *Page) setAutoSummary() error {
 	var summary string
 	var truncated bool
+	// This careful init dance could probably be refined, but it is purely for performance
+	// reasons. These "plain" methods are expensive if the plain content is never actually
+	// used.
+	p.initPlain(false)
 	if p.isCJKLanguage {
-		summary, truncated = p.s.ContentSpec.TruncateWordsByRune(p.PlainWords())
+		p.initPlainWords(false)
+		summary, truncated = p.s.ContentSpec.TruncateWordsByRune(p.plainWords)
 	} else {
-		summary, truncated = p.s.ContentSpec.TruncateWordsToWholeSentence(p.Plain())
+		summary, truncated = p.s.ContentSpec.TruncateWordsToWholeSentence(p.plain)
 	}
-	p.Summary = template.HTML(summary)
-	p.Truncated = truncated
+	p.summary = template.HTML(summary)
+	p.truncated = truncated
 
 	return nil
+
 }
 
 func (p *Page) renderContent(content []byte) []byte {
@@ -784,11 +908,12 @@ func (s *Site) newPage(filename string) *Page {
 
 func (s *Site) newPageFromFile(fi *fileInfo) *Page {
 	return &Page{
-		pageInit:    &pageInit{},
-		Kind:        kindFromFileInfo(fi),
-		contentType: "",
-		Source:      Source{File: fi},
-		Keywords:    []string{}, Sitemap: Sitemap{Priority: -1},
+		pageInit:        &pageInit{},
+		pageContentInit: &pageContentInit{},
+		Kind:            kindFromFileInfo(fi),
+		contentType:     "",
+		Source:          Source{File: fi},
+		Keywords:        []string{}, Sitemap: Sitemap{Priority: -1},
 		params:       make(map[string]interface{}),
 		translations: make(Pages, 0),
 		sections:     sectionsFromFile(fi),
@@ -849,7 +974,7 @@ func (s *Site) NewPage(name string) (*Page, error) {
 func (p *Page) ReadFrom(buf io.Reader) (int64, error) {
 	// Parse for metadata & body
 	if err := p.parse(buf); err != nil {
-		p.s.Log.ERROR.Print(err)
+		p.s.Log.ERROR.Printf("%s for %s", err, p.File.Path())
 		return 0, err
 	}
 
@@ -872,10 +997,11 @@ func (p *Page) FuzzyWordCount() int {
 }
 
 func (p *Page) analyzePage() {
+	p.initContent()
 	p.pageMetaInit.Do(func() {
 		if p.isCJKLanguage {
 			p.wordCount = 0
-			for _, word := range p.PlainWords() {
+			for _, word := range p.plainWords {
 				runeCount := utf8.RuneCountInString(word)
 				if len(word) == runeCount {
 					p.wordCount++
@@ -884,7 +1010,7 @@ func (p *Page) analyzePage() {
 				}
 			}
 		} else {
-			p.wordCount = helpers.TotalWords(p.Plain())
+			p.wordCount = helpers.TotalWords(p.plain)
 		}
 
 		// TODO(bep) is set in a test. Fix that.
@@ -1041,23 +1167,41 @@ func (p *Page) subResourceTargetPathFactory(base string) string {
 	return path.Join(p.relTargetPathBase, base)
 }
 
-func (p *Page) prepareForRender(cfg *BuildCfg) error {
-	s := p.s
+func (p *Page) setContentInit(start bool) error {
 
-	if !p.shouldRenderTo(s.rc.Format) {
-		// No need to prepare
-		return nil
+	if start {
+		// This is a new language.
+		p.shortcodeState.clearDelta()
 	}
-
-	var shortcodeUpdate bool
+	updated := true
 	if p.shortcodeState != nil {
-		shortcodeUpdate = p.shortcodeState.updateDelta()
+		updated = p.shortcodeState.updateDelta()
 	}
 
-	if !shortcodeUpdate && !cfg.whatChanged.other {
-		// No need to process it again.
-		return nil
+	if updated {
+		p.resetContent()
 	}
+
+	for _, r := range p.Resources.ByType(pageResourceType) {
+		p.s.PathSpec.ProcessingStats.Incr(&p.s.PathSpec.ProcessingStats.Pages)
+		bp := r.(*Page)
+		if start {
+			bp.shortcodeState.clearDelta()
+		}
+		if bp.shortcodeState != nil {
+			updated = bp.shortcodeState.updateDelta()
+		}
+		if updated {
+			bp.resetContent()
+		}
+	}
+
+	return nil
+
+}
+
+func (p *Page) prepareForRender() error {
+	s := p.s
 
 	// If we got this far it means that this is either a new Page pointer
 	// or a template or similar has changed so wee need to do a rerendering
@@ -1066,7 +1210,7 @@ func (p *Page) prepareForRender(cfg *BuildCfg) error {
 	// If in watch mode or if we have multiple output formats,
 	// we need to keep the original so we can
 	// potentially repeat this process on rebuild.
-	needsACopy := p.s.running() || len(p.outputFormats) > 1
+	needsACopy := s.running() || len(p.outputFormats) > 1
 	var workContentCopy []byte
 	if needsACopy {
 		workContentCopy = make([]byte, len(p.workContent))
@@ -1076,14 +1220,10 @@ func (p *Page) prepareForRender(cfg *BuildCfg) error {
 		workContentCopy = p.workContent
 	}
 
-	if p.Markup == "markdown" {
-		tmpContent, tmpTableOfContents := helpers.ExtractTOC(workContentCopy)
-		p.TableOfContents = helpers.BytesToHTML(tmpTableOfContents)
-		workContentCopy = tmpContent
-	}
-
 	var err error
-	if workContentCopy, err = handleShortcodes(p, workContentCopy); err != nil {
+	// Note: The shortcodes in a page cannot access the page content it lives in,
+	// hence the withoutContent().
+	if workContentCopy, err = handleShortcodes(p.withoutContent(), workContentCopy); err != nil {
 		s.Log.ERROR.Printf("Failed to handle shortcodes for page %s: %s", p.BaseFileName(), err)
 	}
 
@@ -1098,28 +1238,10 @@ func (p *Page) prepareForRender(cfg *BuildCfg) error {
 			workContentCopy = summaryContent.content
 		}
 
-		p.Content = helpers.BytesToHTML(workContentCopy)
-
-		if summaryContent == nil {
-			if err := p.setAutoSummary(); err != nil {
-				s.Log.ERROR.Printf("Failed to set user auto summary for page %q: %s", p.pathOrTitle(), err)
-			}
-		}
+		p.contentv = helpers.BytesToHTML(workContentCopy)
 
 	} else {
-		p.Content = helpers.BytesToHTML(workContentCopy)
-	}
-
-	//analyze for raw stats
-	p.analyzePage()
-
-	// Handle bundled pages.
-	for _, r := range p.Resources.ByType(pageResourceType) {
-		p.s.PathSpec.ProcessingStats.Incr(&p.s.PathSpec.ProcessingStats.Pages)
-		bp := r.(*Page)
-		if err := bp.prepareForRender(cfg); err != nil {
-			s.Log.ERROR.Printf("Failed to prepare bundled page %q for render: %s", bp.BaseFileName(), err)
-		}
+		p.contentv = helpers.BytesToHTML(workContentCopy)
 	}
 
 	return nil
@@ -1697,9 +1819,10 @@ func (p *Page) SaveSource() error {
 	return p.SaveSourceAs(p.FullFilePath())
 }
 
+// TODO(bep) lazy consolidate
 func (p *Page) processShortcodes() error {
 	p.shortcodeState = newShortcodeHandler(p)
-	tmpContent, err := p.shortcodeState.extractShortcodes(string(p.workContent), p)
+	tmpContent, err := p.shortcodeState.extractShortcodes(string(p.workContent), p.withoutContent())
 	if err != nil {
 		return err
 	}
@@ -1720,7 +1843,7 @@ func (p *Page) prepareLayouts() error {
 	if p.Kind == KindPage {
 		if !p.IsRenderable() {
 			self := "__" + p.UniqueID()
-			err := p.s.TemplateHandler().AddLateTemplate(self, string(p.Content))
+			err := p.s.TemplateHandler().AddLateTemplate(self, string(p.content()))
 			if err != nil {
 				return err
 			}
@@ -1829,8 +1952,11 @@ func (p *Page) updatePageDates() {
 // copy creates a copy of this page with the lazy sync.Once vars reset
 // so they will be evaluated again, for word count calculations etc.
 func (p *Page) copy() *Page {
+	p.contentInitMu.Lock()
 	c := *p
+	p.contentInitMu.Unlock()
 	c.pageInit = &pageInit{}
+	c.pageContentInit = &pageContentInit{}
 	return &c
 }
 
