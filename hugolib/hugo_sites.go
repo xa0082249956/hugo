@@ -559,23 +559,14 @@ func (h *HugoSites) setupTranslations() {
 	}
 }
 
-func (s *Site) preparePagesForRender(cfg *BuildCfg) {
+func (s *Site) preparePagesForRender(start bool) {
 	for _, p := range s.Pages {
-		p.setContentInit(cfg)
-		// The skip render flag is used in many tests. To make sure that they
-		// have access to the content, we need to manually initialize it here.
-		if cfg.SkipRender {
-			p.initContent()
-		}
+		p.setContentInit(start)
 	}
 
 	for _, p := range s.headlessPages {
-		p.setContentInit(cfg)
-		if cfg.SkipRender {
-			p.initContent()
-		}
+		p.setContentInit(start)
 	}
-
 }
 
 // Pages returns all pages for all sites.
@@ -584,8 +575,8 @@ func (h *HugoSites) Pages() Pages {
 }
 
 func handleShortcodes(p *PageWithoutContent, rawContentCopy []byte) ([]byte, error) {
-	if p.shortcodeState != nil && len(p.shortcodeState.contentShortcodes) > 0 {
-		p.s.Log.DEBUG.Printf("Replace %d shortcodes in %q", len(p.shortcodeState.contentShortcodes), p.BaseFileName())
+	if p.shortcodeState != nil && p.shortcodeState.contentShortcodes.Len() > 0 {
+		p.s.Log.DEBUG.Printf("Replace %d shortcodes in %q", p.shortcodeState.contentShortcodes.Len(), p.BaseFileName())
 		err := p.shortcodeState.executeShortcodesForDelta(p)
 
 		if err != nil {
